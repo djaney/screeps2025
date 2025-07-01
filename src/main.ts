@@ -1,5 +1,6 @@
 import { ErrorMapper } from "utils/ErrorMapper";
 import Bot from "./Bot";
+import { Traveler } from "./utils/Traveler/Traveler";
 
 declare global {
   /*
@@ -17,9 +18,12 @@ declare global {
   }
 
   interface CreepMemory {
-    role: string;
-    room: string;
-    working: boolean;
+    _travel: any;
+    _trav: any;
+  }
+
+  interface RoomMemory {
+    avoid: any
   }
 
   // Syntax for adding proprties to `global` (ex "global.log")
@@ -30,9 +34,16 @@ declare global {
   }
 }
 
+// assigns a function to Creep.prototype: creep.travelTo(destination)
+Creep.prototype.travelTo = function(destination: RoomPosition|{pos: RoomPosition}, options?: TravelToOptions) {
+    return Traveler.travelTo(this, destination, options);
+};
+
+
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
 // This utility uses source maps to get the line numbers and file names of the original, TS source code
 const bot = new Bot();
+console.log("START")
 export const loop = ErrorMapper.wrapLoop(() => {
   bot.loop()
 });

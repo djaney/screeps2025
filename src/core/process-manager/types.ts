@@ -8,12 +8,11 @@ export enum Priority {
 }
 export interface ProcessUnit {
   priority: Priority
-  func: () => undefined|ProcessResponse;
+  func: () => void|ProcessResponse;
 }
 
 export interface ProcessResponse {
   scheduleIn?:  ScheduleInUnit;
-  retry?: boolean;
 }
 
 export interface ScheduleInUnit {
