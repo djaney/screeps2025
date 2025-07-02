@@ -78,8 +78,6 @@ export class Traveler {
             delete travelData.path;
         }
 
-        // TODO:handle case where creep moved by some other function, but destination is still the same
-
         // delete path cache if destination is different
         if (!this.samePos(state.destination, destination)) {
             if (options.movingTarget && state.destination.isNearTo(destination)) {

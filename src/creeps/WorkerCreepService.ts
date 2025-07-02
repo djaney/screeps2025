@@ -1,7 +1,7 @@
 import BaseCreepService from "../core/BaseCreepService";
 import { Priority } from "../core/process-manager/types";
-import TerrainAlgo from "../utils/TerrainAlgo";
 import { MiningIndex } from "../utils/mining";
+import { LogisticIndex, LSinkSpawn, LSourceMiner } from "../utils/logistics";
 
 enum WorkerType {
   MINER = "m",
@@ -11,53 +11,19 @@ enum WorkerType {
 const SMALL_MINER = [WORK, MOVE, CARRY];
 const SMALL_HAULER = [MOVE, CARRY];
 
-type CreepIndex = {
-  [roomId in string]?: {
-    [type in string]?: {
-      [name in string]?: CreepIndexData;
-    };
-  };
-};
-type CreepIndexData = {
-  minerSlot?: string[],
-  source?: string[]
-  sink?: string[]
-}|null
 
-type MinerSlotIndex = {
-  [roomId in string]?: {
-    [xy in string]?: MinerSlotData;
-  };
-};
-type MinerSlotData = {
-  target: Id<Source>
-  creep?: string[]
-}
-
-type SourceIndex = {
-  [roomId in string]?: {
-    [objectId in string]?: {
-      creep?: string[]
-    };
-  };
-};
-type SinkIndex = {
-  [roomId in string]?: {
-    [objectId in string]?: {
-      creep?: string[]
-    };
-  };
-};
 
 export default class WorkerCreepService extends BaseCreepService {
   prefix = "w";
 
   miningIndex: MiningIndex = new MiningIndex()
+  logisticsIndex: LogisticIndex = new LogisticIndex()
 
   initialize() {
     for (const roomId in Game.rooms) {
       this.analyzeSources(roomId);
       this.enqueueAnalyzeRoomSpawns(roomId);
+      this.analyzeEnergyNeeds(roomId);
     }
   }
 
@@ -93,6 +59,13 @@ export default class WorkerCreepService extends BaseCreepService {
     if (!room) return;
     this.miningIndex.addRoom(room);
   }
+  analyzeEnergyNeeds(roomId: string) {
+    const room = Game.rooms[roomId];
+    if (!room) return;
+    room.find(FIND_MY_SPAWNS).forEach(s => {
+      this.logisticsIndex.addSink(new LSinkSpawn(s.id, RESOURCE_ENERGY))
+    })
+  }
 
   /*
   ROOM SPAWNS
@@ -124,23 +97,26 @@ export default class WorkerCreepService extends BaseCreepService {
     const room = Game.rooms[roomId];
     if (!room) return;
     // if there is a spawn and a resource
-    const spawns = room.find(FIND_MY_SPAWNS);
-
-    if(spawns.length > 0 && this.miningIndex.findAvailableSlot()){
+    const creepCounts = room.find(FIND_MY_CREEPS).reduce((a, c) => {
+      const [prefix, type, roomId, idx] = this.splitCreepName(c.name);
+      if(!a[type]) a[type] = 0
+      a[type] += 1;
+      return a
+    }, {} as any);
+    const haulerCount = (creepCounts[WorkerType.HAULER] || 0);
+    const minerCount = (creepCounts[WorkerType.MINER] || 0);
+    if(haulerCount < minerCount){
+      this.bot.enqueueSpawn(roomId, this.generateWorkerCreepName(WorkerType.HAULER, roomId), SMALL_HAULER, n => {
+        this.runCreep(n);
+        this.enqueueAnalyzeRoomSpawns(roomId);
+      });
+    }
+    else if(this.miningIndex.findAvailableSlot()){
       this.bot.enqueueSpawn(roomId, this.generateWorkerCreepName(WorkerType.MINER, roomId), SMALL_MINER, n => {
         this.runCreep(n);
         this.enqueueAnalyzeRoomSpawns(roomId);
       });
     }
-
-    // if (spawns.length > 0 && sources.length > 0) {
-    //   if (this.getWorkerCount(roomId, WorkerType.MINER) < this.getMinerSlotCount(roomId)) {
-    //     this.bot.enqueueSpawn(roomId, this.generateWorkerCreepName(WorkerType.MINER, roomId), SMALL_MINER, n => {
-    //       this.runCreep(n);
-    //       this.enqueueAnalyzeRoomSpawns(roomId);
-    //     });
-    //   }
-    // }
   }
 
   /*
@@ -153,6 +129,7 @@ export default class WorkerCreepService extends BaseCreepService {
       const available = this.miningIndex.findAvailableSlot()
       if (available) {
         this.miningIndex.assignCreep(available, creep);
+        this.logisticsIndex.addSource(new LSourceMiner(creep.id, RESOURCE_ENERGY))
       }
     }
     const slot = this.miningIndex.getCreepSlot(creep)
@@ -165,7 +142,61 @@ export default class WorkerCreepService extends BaseCreepService {
     }
   }
 
-  runHauler(creep: Creep) {}
+  runHauler(creep: Creep) {
+    const [prefix, type, roomId, idx] = this.splitCreepName(creep.name);
+    // allocate creep
+    if (!this.logisticsIndex.isCreepAllocated(creep)) {
+
+      // allocated sink + currently carrying
+      const sources = this.logisticsIndex.getAvailableSource(roomId, RESOURCE_ENERGY, creep.store.getFreeCapacity(RESOURCE_ENERGY));
+      if(sources.length > 0){
+        const s = sources[0];
+        this.logisticsIndex.allocateSource(creep, s, Math.min(creep.store.getFreeCapacity(RESOURCE_ENERGY), s.getFreeValue()))
+      }
+
+      const sinks = this.logisticsIndex.getAvailableSink(roomId, RESOURCE_ENERGY, creep.store.getCapacity(RESOURCE_ENERGY));
+      sinks.forEach(s => {
+        this.logisticsIndex.allocateSink(creep, s, s.getRemainingValue())
+      })
+    }
+
+    // do the work
+    const alloc = this.logisticsIndex.getCreepAllocation(creep);
+    // get sources
+    if(alloc.sources.length > 0){
+      const s = alloc.sources[0];
+      const a = s.getAllocation(creep);
+      if(a){
+        const res = s.pickup(creep, a.value);
+        const target = Game.getObjectById(s.id);
+        if(!target){
+          this.logisticsIndex.deallocateSource(creep, s);
+        }else if(creep.pos.getRangeTo(target.pos) > 1){
+          creep.travelTo(target);
+        }else{
+          // re-allocate to account for constantly growing miner
+          this.logisticsIndex.deallocateSource(creep, s);
+          this.logisticsIndex.allocateSource(creep, s, Math.min(creep.store.getFreeCapacity(s.resource),s.getFreeValue()))
+          s.pickup(creep, a.value);
+          this.logisticsIndex.deallocateSource(creep, s)
+        }
+      }
+    }
+    // get sinks
+    else if(alloc.sinks.length > 0){
+      const s = alloc.sinks[0];
+      const a = s.getAllocation(creep);
+      if(a){
+        const res = s.deliver(creep, a.value);
+        const target = Game.getObjectById(s.id)
+        if(target && res === ERR_NOT_IN_RANGE){
+          creep.travelTo(target)
+        }else{
+          this.logisticsIndex.deallocateSink(creep, s)
+        }
+      }
+    }
+  }
 
   /*
   UTILITY

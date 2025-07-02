@@ -47,7 +47,7 @@ export class MiningIndex {
     if(this.rooms[room.name]) return; // stop if already added
     this.rooms[room.name] = {};
 
-    room.find(FIND_SOURCES).map(s => {
+    room.find(FIND_SOURCES).filter(s => !s.pos.findInRange(FIND_HOSTILE_STRUCTURES, 10)).map(s => {
       this.rooms[room.name][s.id] = new EnergySource(s.id)
     })
   }
@@ -81,7 +81,6 @@ export class MiningIndex {
     // clean-up creeps first
     for(let i in this.creeps){
       if(!Game.getObjectById(i as Id<Creep>)) {
-        console.log("removeCreep", i)
         this.removeCreep(i as Id<Creep>)
       }
     }

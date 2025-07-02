@@ -68,11 +68,10 @@ export default class ProcessManager implements ServiceInterface {
     }
     // scheduling
     for (let i in this.schedule) {
+      this.schedule[i].t -= 1;
       if (this.schedule[i].t <= 0) {
         this.enqueue(this.schedule[i].p);
         delete this.schedule[i];
-      } else {
-        this.schedule[i].t -= 1;
       }
     }
   }
