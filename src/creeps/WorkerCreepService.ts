@@ -10,6 +10,12 @@ enum WorkerType {
   HAULER = "h"
 }
 
+type CreepsByType = {
+  [roomId in string]?: {
+    [type in WorkerType]?: string[]
+  }
+}
+
 const SMALL_MINER = [WORK, MOVE, CARRY];
 const SMALL_HAULER = [MOVE, CARRY];
 
@@ -18,8 +24,9 @@ const SMALL_HAULER = [MOVE, CARRY];
 export default class WorkerCreepService extends BaseCreepService {
   prefix = "w";
 
-  miningIndex: MiningIndex = new MiningIndex()
-  logisticsIndex: LogisticIndex = new LogisticIndex()
+  miningIndex: MiningIndex = new MiningIndex();
+  logisticsIndex: LogisticIndex = new LogisticIndex();
+  creepsByType: CreepsByType = {}
 
   initialize() {
     for (const roomId in Game.rooms) {
@@ -29,15 +36,49 @@ export default class WorkerCreepService extends BaseCreepService {
     }
   }
 
+
+  registerCreep(name: string, roomId: string, type: WorkerType){
+    if(!_.has(this.creepsByType, [roomId, type])){
+      _.set(this.creepsByType, [roomId, type], [])
+    }
+    const creepList: string[] = _.get(this.creepsByType, [roomId, type]);
+    if(!creepList.includes(name)){
+      creepList.push(name)
+    }
+
+  }
+
+  getCreepTypeBodyPartCount(roomId: string, type: WorkerType, part: BodyPartConstant){
+    if(!_.has(this.creepsByType, [roomId, type])){
+      _.set(this.creepsByType, [roomId, type], [])
+    }
+    const creepList: string[] = _.get(this.creepsByType, [roomId, type]);
+    return creepList.reduce((a, cName) => {
+      const creep = Game.creeps[cName];
+      if(!creep) return a;
+      return a + creep.getActiveBodyparts(part)
+    }, 0)
+  }
+
+  deregisterCreep(name: string, roomId: string, type: WorkerType){
+    if(!_.has(this.creepsByType, [roomId, type])){
+      _.set(this.creepsByType, [roomId, type], [])
+    }
+    const creepList: string[] = _.get(this.creepsByType, [roomId, type]);
+    _.remove(creepList, c => c === name)
+  }
+
   runCreep(name: string) {
     if (!Game.creeps[name]) return;
-
+    const [prefix, type, roomId, idx] = this.splitCreepName(name);
+    this.registerCreep(name, roomId, type as WorkerType);
     this.bot.enqueueProcess({
       priority: Priority.NORMAL,
       func: () => {
         const creep = Game.creeps[name];
-        const [prefix, type, roomId, idx] = this.splitCreepName(name);
         if (!creep) {
+          // dead
+          this.deregisterCreep(name, roomId, type as WorkerType);
           this.analyzeSources(roomId)
           return;
         }
@@ -99,14 +140,8 @@ export default class WorkerCreepService extends BaseCreepService {
     const room = Game.rooms[roomId];
     if (!room) return;
     // if there is a spawn and a resource
-    const creepCounts = room.find(FIND_MY_CREEPS).reduce((a, c) => {
-      const [prefix, type, roomId, idx] = this.splitCreepName(c.name);
-      if(!a[type]) a[type] = 0
-      a[type] += 1;
-      return a
-    }, {} as any);
-    const haulerCount = (creepCounts[WorkerType.HAULER] || 0);
-    const minerCount = (creepCounts[WorkerType.MINER] || 0);
+    const haulerCount = this.getCreepTypeBodyPartCount(roomId, WorkerType.HAULER, CARRY);
+    const minerCount = this.getCreepTypeBodyPartCount(roomId, WorkerType.MINER, WORK);
     if(haulerCount < minerCount){
       this.bot.enqueueSpawn(roomId, this.generateWorkerCreepName(WorkerType.HAULER, roomId), SMALL_HAULER, n => {
         this.runCreep(n);

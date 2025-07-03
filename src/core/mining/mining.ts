@@ -28,6 +28,21 @@ export class EnergySource {
   }
 
   findAvailableSlot(): MinerSlot[]{
+    const workParts = this.slots
+      .map(s => s.creepId ? Game.getObjectById(s.creepId) : null)
+      .reduce((a, c) => {
+        if(!c) return a;
+        return a + c.getActiveBodyparts(WORK);
+      }, 0)
+    const source = Game.getObjectById(this.id)
+    const totalHarvestPower = HARVEST_POWER * workParts
+    if(!source) return []
+
+    // if already enough harvest power, mark it as the source as taken
+    if(totalHarvestPower >= (source.energyCapacity / ENERGY_REGEN_TIME)){
+      return [];
+    }
+
     return this.slots.filter(s => !s.creepId);
   }
 }
