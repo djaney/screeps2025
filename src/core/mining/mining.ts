@@ -1,4 +1,4 @@
-import TerrainAlgo from "./TerrainAlgo";
+import TerrainAlgo from "../../utils/TerrainAlgo";
 export class MinerSlot {
   creepId?: Id<Creep>
   constructor(readonly source: EnergySource, readonly pos: RoomPosition) {

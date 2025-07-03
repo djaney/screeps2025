@@ -1,7 +1,9 @@
 import BaseCreepService from "../core/BaseCreepService";
 import { Priority } from "../core/process-manager/types";
-import { MiningIndex } from "../utils/mining";
-import { LogisticIndex, LSinkSpawn, LSourceMiner } from "../utils/logistics";
+import { MiningIndex } from "../core/mining/mining";
+import { LSinkSpawn } from "../core/logistics/sinks"
+import { LSourceMiner } from "../core/logistics/sources"
+import { LogisticIndex } from "../core/logistics/LogisticIndex";
 
 enum WorkerType {
   MINER = "m",
