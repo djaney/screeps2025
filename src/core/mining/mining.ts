@@ -92,6 +92,16 @@ export class MiningIndex {
     return !!this.creeps[creep.id]
   }
 
+  slotCount(){
+    let slots = 0;
+    for(let i in this.rooms){
+      for(let j in this.rooms[i]){
+        slots += _.size(this.rooms[i][j as Id<Source>].slots)
+      }
+    }
+    return slots;
+  }
+
   findAvailableSlot(): MinerSlot|undefined {
     // clean-up creeps first
     for(let i in this.creeps){

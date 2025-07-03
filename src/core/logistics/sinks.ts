@@ -1,5 +1,32 @@
-import { BuildingSink, LSinkInterface } from "./logistics";
+import { BaseNode, LResourceConstant } from "./logistics";
+type TransferEntities = StructureSpawn|Creep
+export class TransferSink<T extends TransferEntities> extends BaseNode{
+  constructor(readonly id: Id<T>, readonly resource: LResourceConstant) {
+    super()
+  }
 
-export class LSinkSpawn extends BuildingSink implements LSinkInterface<StructureSpawn>{
+  getRemainingValue(): number {
+    const obj = Game.getObjectById(this.id);
+    if (!obj) return 0;
 
+    for (let i in this.allocation) {
+      // free allocation if creep does not exist
+      if (!Game.getObjectById(i as Id<Creep>)) {
+        this.freeAllocation(i as Id<Creep>);
+      }
+    }
+    // @ts-ignore
+    const storedValue = obj.store[this.resource] || 0;
+    const allocatedValue = Object.values(this.allocation).reduce((a, alloc) => {
+      return a + (alloc?.value || 0);
+    }, 0);
+    return Math.max(0, storedValue - allocatedValue);
+  }
+
+  deliver(creep: Creep, amount: number): number {
+    const other = Game.getObjectById(this.id);
+    if (!other) return ERR_INVALID_TARGET;
+    // @ts-ignore
+    return creep.transfer(other, this.resource, Math.min(amount, creep.store.getUsedCapacity(this.resource)));
+  }
 }

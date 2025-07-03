@@ -1,13 +1,14 @@
 import BaseCreepService from "../core/BaseCreepService";
 import { Priority } from "../core/process-manager/types";
 import { MiningIndex } from "../core/mining/mining";
-import { LSinkSpawn } from "../core/logistics/sinks"
+import { TransferSink } from "../core/logistics/sinks";
 import { LSourceMiner } from "../core/logistics/sources"
 import { LogisticIndex } from "../core/logistics/LogisticIndex";
 
 enum WorkerType {
   MINER = "m",
-  HAULER = "h"
+  HAULER = "h",
+  CONTROLLER = "c",
 }
 
 type CreepsByType = {
@@ -18,6 +19,7 @@ type CreepsByType = {
 
 const SMALL_MINER = [WORK, MOVE, CARRY];
 const SMALL_HAULER = [MOVE, CARRY];
+const MEDIUM_HAULER = [MOVE, MOVE, CARRY, CARRY];
 
 
 
@@ -60,6 +62,18 @@ export default class WorkerCreepService extends BaseCreepService {
     }, 0)
   }
 
+  getCreepTypeCount(roomId: string, type: WorkerType){
+    if(!_.has(this.creepsByType, [roomId, type])){
+      _.set(this.creepsByType, [roomId, type], [])
+    }
+    const creepList: string[] = _.get(this.creepsByType, [roomId, type]);
+    return creepList.reduce((a, cName) => {
+      const creep = Game.creeps[cName];
+      if(!creep) return a;
+      return a + 1;
+    }, 0)
+  }
+
   deregisterCreep(name: string, roomId: string, type: WorkerType){
     if(!_.has(this.creepsByType, [roomId, type])){
       _.set(this.creepsByType, [roomId, type], [])
@@ -86,6 +100,8 @@ export default class WorkerCreepService extends BaseCreepService {
           this.runMiner(creep);
         } else if (type === WorkerType.HAULER) {
           this.runHauler(creep);
+        } else if (type === WorkerType.CONTROLLER) {
+          this.runController(creep);
         }
 
         if (creep.ticksToLive !== undefined && creep.ticksToLive <= 1) {
@@ -106,7 +122,7 @@ export default class WorkerCreepService extends BaseCreepService {
     const room = Game.rooms[roomId];
     if (!room) return;
     room.find(FIND_MY_SPAWNS).forEach(s => {
-      this.logisticsIndex.addSink(new LSinkSpawn(s.id, RESOURCE_ENERGY))
+      this.logisticsIndex.addSink(new TransferSink(s.id, RESOURCE_ENERGY))
     })
   }
 
@@ -140,15 +156,40 @@ export default class WorkerCreepService extends BaseCreepService {
     const room = Game.rooms[roomId];
     if (!room) return;
     // if there is a spawn and a resource
-    const haulerCount = this.getCreepTypeBodyPartCount(roomId, WorkerType.HAULER, CARRY);
-    const minerCount = this.getCreepTypeBodyPartCount(roomId, WorkerType.MINER, WORK);
-    if(haulerCount < minerCount){
-      this.bot.enqueueSpawn(roomId, this.generateWorkerCreepName(WorkerType.HAULER, roomId), SMALL_HAULER, n => {
+    const haulerBodyCount = this.getCreepTypeBodyPartCount(roomId, WorkerType.HAULER, CARRY);
+    const minerBodyCount = this.getCreepTypeBodyPartCount(roomId, WorkerType.MINER, WORK);
+    const controllerBodyCount = this.getCreepTypeBodyPartCount(roomId, WorkerType.CONTROLLER, WORK);
+    const minerCount = this.getCreepTypeCount(roomId, WorkerType.MINER);
+
+    if(haulerBodyCount < minerBodyCount){
+      let parts: BodyPartConstant[]
+      if(haulerBodyCount === 0){
+        parts = SMALL_HAULER
+      }else{
+        parts = MEDIUM_HAULER
+      }
+      this.bot.enqueueSpawn(roomId, this.generateWorkerCreepName(WorkerType.HAULER, roomId), parts, n => {
         this.runCreep(n);
         this.enqueueAnalyzeRoomSpawns(roomId);
       });
     }
-    else if(this.miningIndex.findAvailableSlot()){
+    else if(
+      (minerBodyCount > 1 && haulerBodyCount > 1 && controllerBodyCount < 1) ||
+      minerBodyCount > 5 && haulerBodyCount > 5 && controllerBodyCount < 3
+    ){
+      const parts = [MOVE, CARRY];
+      const initialCost: number = parts.reduce((a,p) => a + BODYPART_COST[p], 0);
+      const workCount = Math.floor(room.energyCapacityAvailable - initialCost) / BODYPART_COST[WORK]
+      this.bot.enqueueSpawn(
+        roomId, this.generateWorkerCreepName(WorkerType.CONTROLLER, roomId),
+        parts.concat(Array(workCount).fill(WORK)),
+          n => {
+            this.runCreep(n);
+            this.enqueueAnalyzeRoomSpawns(roomId);
+          }
+      );
+    }
+    else if(this.miningIndex.slotCount() > minerCount){
       this.bot.enqueueSpawn(roomId, this.generateWorkerCreepName(WorkerType.MINER, roomId), SMALL_MINER, n => {
         this.runCreep(n);
         this.enqueueAnalyzeRoomSpawns(roomId);
@@ -203,6 +244,12 @@ export default class WorkerCreepService extends BaseCreepService {
     if(alloc.sources.length > 0){
       const s = alloc.sources[0];
       const a = s.getAllocation(creep);
+
+      if(creep.store.getFreeCapacity(s.resource) === 0){
+        this.logisticsIndex.deallocateSource(creep, s);
+        return;
+      }
+
       if(a){
         const res = s.pickup(creep, a.value);
         const target = Game.getObjectById(s.id);
@@ -223,6 +270,12 @@ export default class WorkerCreepService extends BaseCreepService {
     else if(alloc.sinks.length > 0){
       const s = alloc.sinks[0];
       const a = s.getAllocation(creep);
+
+      if(creep.store.getUsedCapacity(s.resource) === 0){
+        this.logisticsIndex.deallocateSink(creep, s);
+        return;
+      }
+
       if(a){
         const res = s.deliver(creep, a.value);
         const target = Game.getObjectById(s.id)
@@ -233,6 +286,20 @@ export default class WorkerCreepService extends BaseCreepService {
         }
       }
     }
+  }
+
+  runController(creep: Creep){
+    const [prefix, type, roomId, idx] = this.splitCreepName(creep.name);
+    this.logisticsIndex.addSink(new TransferSink(creep.id, RESOURCE_ENERGY));
+    const room = Game.rooms[roomId];
+    if(!room) return
+    if(!room.controller) return
+    if(creep.pos.getRangeTo(room.controller.pos) > 1){
+      creep.travelTo(room.controller.pos)
+    }else{
+      creep.upgradeController(room.controller)
+    }
+
   }
 
   /*

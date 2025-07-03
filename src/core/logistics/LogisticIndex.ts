@@ -71,7 +71,21 @@ export class LogisticIndex {
       }
     }
     out.sort((a,b) => {
-      return  b.getFreeValue() - a.getFreeValue()
+      const aValue =  Object.values(a.allocation).reduce((acc, alloc) => {
+        if(!alloc) return acc;
+        const obj = Game.getObjectById(alloc.id);
+        if(!obj) return acc;
+
+        return acc + obj.store.getUsedCapacity(a.resource)
+      }, 0);
+      const bValue =  Object.values(b.allocation).reduce((acc, alloc) => {
+        if(!alloc) return acc;
+        const obj = Game.getObjectById(alloc.id);
+        if(!obj) return acc;
+
+        return acc + obj.store.getUsedCapacity(b.resource)
+      }, 0)
+      return  bValue - aValue;
     })
     return out;
   }

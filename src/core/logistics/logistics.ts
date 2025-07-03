@@ -1,5 +1,5 @@
 export type LSourceConstant = Creep
-export type LSinkConstant = StructureSpawn
+export type LSinkConstant = StructureSpawn|Creep
 export type LResourceConstant = RESOURCE_ENERGY
 export type NodeAllocation = {[id in Id<Creep>]?:AllocationValue}
 export type AllocationValue = { id: Id<Creep>, value: number }
@@ -99,41 +99,6 @@ export abstract class BaseCreepSource extends BaseSource implements LSourceInter
     return other.transfer(creep, this.resource, Math.min(amount, other.store.getUsedCapacity(this.resource)));
   }
 }
-
-export abstract class BaseSink extends BaseNode{
-  constructor(readonly id: Id<StructureSpawn>, readonly resource: LResourceConstant) {
-    super()
-  }
-
-  getRemainingValue(): number {
-    const obj = Game.getObjectById(this.id);
-    if (!obj) return 0;
-
-    for (let i in this.allocation) {
-      // free allocation if creep does not exist
-      if (!Game.getObjectById(i as Id<Creep>)) {
-        this.freeAllocation(i as Id<Creep>);
-      }
-    }
-
-    const storedValue = obj.store[this.resource] || 0;
-    const allocatedValue = Object.values(this.allocation).reduce((a, alloc) => {
-      return a + (alloc?.value || 0);
-    }, 0);
-    return Math.max(0, storedValue - allocatedValue);
-  }
-
-  deliver(creep: Creep, amount: number): number {
-    const other = Game.getObjectById(this.id);
-    if (!other) return ERR_INVALID_TARGET;
-    return creep.transfer(other, this.resource, Math.min(amount, creep.store.getUsedCapacity(this.resource)));
-  }
-}
-
-export abstract class BuildingSink extends BaseSink{
-
-}
-
 
 
 
