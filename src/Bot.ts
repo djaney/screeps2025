@@ -5,6 +5,7 @@ import BaseCreepService from "./core/BaseCreepService";
 import { ProcessUnit, ScheduleId } from "./core/process-manager/types";
 import ServiceInterface from "./ServiceInterface";
 import PixelService from "./services/PixelService";
+import { BasePlanningService } from "./services/BasePlanningService";
 type ServiceMap = {
   worker: WorkerCreepService
 }
@@ -50,7 +51,7 @@ export default class Bot {
 
   initialize(){
     this.creepServices = [new WorkerCreepService(this)]
-    this.services = [new PixelService(this)]
+    this.services = [new PixelService(this), new BasePlanningService(this)]
   }
 
   loop(){
