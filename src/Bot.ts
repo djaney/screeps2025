@@ -3,6 +3,8 @@ import WorkerCreepService from "./creeps/WorkerCreepService";
 import SpawnManager, { QueueCallback } from "./core/spawn-manager/SpawnManager";
 import BaseCreepService from "./core/BaseCreepService";
 import { ProcessUnit, ScheduleId } from "./core/process-manager/types";
+import ServiceInterface from "./ServiceInterface";
+import PixelService from "./services/PixelService";
 type ServiceMap = {
   worker: WorkerCreepService
 }
@@ -12,15 +14,16 @@ type CreepServicePrefixIndex = {
 }
 
 export default class Bot {
-  private process: ProcessManager
-  private spawn: SpawnManager
+  private process: ProcessManager;
+  private spawn: SpawnManager;
   creepServices: BaseCreepService[] = []
+  services: ServiceInterface[] = []
   creepServicePrefixIndex: CreepServicePrefixIndex = {}
 
   constructor() {
     this.process = new ProcessManager(this);
-    this.spawn = new SpawnManager(this)
-    this.creepServices = [new WorkerCreepService(this)]
+    this.spawn = new SpawnManager(this);
+    this.initialize();
 
     // initialize services
     for(let s of Object.values(this.creepServices)){
@@ -31,6 +34,11 @@ export default class Bot {
       s.initialize();
     }
 
+    // initialize services
+    for(let s of Object.values(this.services)){
+      s.initialize();
+    }
+
     // run existing creeps
     for(let creepName of _.keys(Game.creeps)){
       const prefix = creepName.split('.').shift();
@@ -38,6 +46,11 @@ export default class Bot {
       this.creepServicePrefixIndex[prefix]?.runCreep(creepName);
     }
 
+  }
+
+  initialize(){
+    this.creepServices = [new WorkerCreepService(this)]
+    this.services = [new PixelService(this)]
   }
 
   loop(){
