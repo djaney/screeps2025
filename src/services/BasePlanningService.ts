@@ -3,6 +3,8 @@ import { getDistanceTransform, getPositionsByPathCost } from "../utils/distance_
 import Bot from "../Bot";
 import { Priority } from "../core/process-manager/types";
 
+type XY = [number, number]
+
 declare global {
   interface RoomMemory {
     bp?: {
@@ -11,7 +13,8 @@ declare global {
       upgrade?: StampBox,
       core?: StampBox,
       costMat?: number[],
-      constructionSites?: number[][]
+      findLabs?: number[],
+      constructionSites?: XY[]
     }
   }
 }
@@ -129,7 +132,7 @@ export class BasePlanningService implements ServiceInterface {
     room.memory.bp.costMat = costMat.serialize();
   }
 
-  findBuildingSites(room: Room){
+  findLabs(room: Room){
     if(!room.memory.bp) room.memory.bp = {}
     if(!room.memory.bp.core) return;
     if(!room.memory.bp.allocated) return
@@ -137,15 +140,15 @@ export class BasePlanningService implements ServiceInterface {
     const distTrans = PathFinder.CostMatrix.deserialize(room.memory.bp.distTrans || []);
     const allocation = PathFinder.CostMatrix.deserialize(room.memory.bp.allocated)
     const costMat = PathFinder.CostMatrix.deserialize(room.memory.bp.costMat)
-    let open : number[][] = [[room.memory.bp.core.x, room.memory.bp.core.y]]
-    let close : number[][] = []
+    let open : XY[] = [[room.memory.bp.core.x, room.memory.bp.core.y]]
+    let close : XY[] = []
     let diagStep = 5;
     let first = true;
     const visited = new PathFinder.CostMatrix();
     let itr = 0
     while(true){
       // fill open
-      let tmpOpen: number[][] = [];
+      let tmpOpen: XY[] = [];
       if(open.length === 0) break
 
       // work on open, new open in temporary
@@ -179,7 +182,83 @@ export class BasePlanningService implements ServiceInterface {
       open = tmpOpen;
       diagStep = 2;
     }
-    const constructionSites: number [][] = [];
+    const constructionSites: XY[] = [];
+
+    close.sort((a, b) => {
+      return costMat.get(a[0], a[1]) - costMat.get(b[0], b[1])
+    })
+
+    close.forEach(([x,y]) => {
+      if(room.getTerrain().get(x, y) > 0) return;
+      if(distTrans.get(x,y) <= 1) return;
+      if(allocation.get(x,y) > 0) return;
+      [
+        [x,y],
+        [x,y-1],
+        [x,y+1],
+        [x-1,y],
+        [x+1,y],
+      ].forEach(([x,y]) => {
+        constructionSites.push([x,y])
+        allocation.set(x,y, 1)
+      })
+    })
+
+    room.memory.bp.constructionSites = constructionSites
+
+  }
+
+  findBuildingSites(room: Room){
+    if(!room.memory.bp) room.memory.bp = {}
+    if(!room.memory.bp.core) return;
+    if(!room.memory.bp.allocated) return
+    if(!room.memory.bp.costMat) return
+    const distTrans = PathFinder.CostMatrix.deserialize(room.memory.bp.distTrans || []);
+    const allocation = PathFinder.CostMatrix.deserialize(room.memory.bp.allocated)
+    const costMat = PathFinder.CostMatrix.deserialize(room.memory.bp.costMat)
+    let open : XY[] = [[room.memory.bp.core.x, room.memory.bp.core.y]]
+    let close : XY[] = []
+    let diagStep = 5;
+    let first = true;
+    const visited = new PathFinder.CostMatrix();
+    let itr = 0
+    while(true){
+      // fill open
+      let tmpOpen: XY[] = [];
+      if(open.length === 0) break
+
+      // work on open, new open in temporary
+      open.forEach(([x, y]) => {
+        visited.set(x, y, 1);
+        [
+          [x-diagStep, y-diagStep],
+          [x+diagStep, y-diagStep],
+          [x-diagStep, y+diagStep],
+          [x+diagStep, y+diagStep],
+        ].forEach(([x,y]) => {
+          if(x < 1 || x > 49) return;
+          if(y < 1 || y > 49) return;
+          if(visited.get(x,y) > 0) return;
+          if(costMat.get(x,y) > 10) return;
+          tmpOpen.push([x,y]);
+          visited.set(x,y, 1);
+        })
+
+      });
+
+
+      if(first && tmpOpen.length > 0){
+
+        tmpOpen = [tmpOpen[0]];
+        first = false;
+      }
+      // open to close
+      close = close.concat(tmpOpen)
+      // temporary open to open
+      open = tmpOpen;
+      diagStep = 2;
+    }
+    const constructionSites: XY[] = [];
 
     close.sort((a, b) => {
       return costMat.get(a[0], a[1]) - costMat.get(b[0], b[1])
