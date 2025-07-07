@@ -26,6 +26,8 @@ type Building = {
 declare global {
   interface RoomMemory {
     bp?: {
+      result?: boolean;
+      err?: string;
       distTrans?: number[];
       allocated?: number[];
       upgrade?: StampBox;
@@ -56,32 +58,38 @@ export class BasePlanningService implements ServiceInterface {
         func: () => {
           const room = Game.rooms[roomId];
           if (!room) return;
-          if (!room.memory.bp) room.memory.bp = {};
-          if (!room.memory.bp.distTrans) {
-            this.findDistTrans(room);
-          }
-          else if (room.memory.bp.distTrans && !room.memory.bp.upgrade) {
-            this.findUpgrade(room);
-          }
-          else if (room.memory.bp.distTrans && !room.memory.bp.core) {
-            this.findCore(room);
-          }
-          else if (!room.memory.bp.costMat) {
-            this.findCostMat(room);
-          }
-          else if (!room.memory.bp.labs) {
-            this.findLabs(room);
-          }
-          else if (!room.memory.bp.constructionSites || !room.memory.bp.potentialRoad) {
-            this.findBuildingSites(room);
-          }
-          else if ((Game.rooms.sim || Game.cpu.tickLimit >= 50) && !room.memory.bp.buildings) {
-            this.generateBuildings(room);
+          try{
+            if (!room.memory.bp) room.memory.bp = {};
+            if (!room.memory.bp.distTrans) {
+              this.findDistTrans(room);
+            }
+            else if (room.memory.bp.distTrans && !room.memory.bp.upgrade) {
+              this.findUpgrade(room);
+            }
+            else if (room.memory.bp.distTrans && !room.memory.bp.core) {
+              this.findCore(room);
+            }
+            else if (!room.memory.bp.costMat) {
+              this.findCostMat(room);
+            }
+            else if (!room.memory.bp.labs) {
+              this.findLabs(room);
+            }
+            else if (!room.memory.bp.constructionSites || !room.memory.bp.potentialRoad) {
+              this.findBuildingSites(room);
+            }
+            else if ((Game.rooms.sim || Game.cpu.tickLimit >= 50) && !room.memory.bp.buildings) {
+              this.generateBuildings(room);
+            }
+
+            else if ((Game.rooms.sim || Game.cpu.tickLimit >= 50) && !room.memory.bp.ramparts) {
+              this.generateRamparts(room);
+            }
+          }catch (e){
+            room.memory.bp = {err: String(e), result: false};
+            return;
           }
 
-          else if ((Game.rooms.sim || Game.cpu.tickLimit >= 50) && !room.memory.bp.ramparts) {
-            this.generateRamparts(room);
-          }
 
           if (this.debug && room.memory.bp.upgrade) this.renderStamp(room, room.memory.bp.upgrade);
           if (this.debug && room.memory.bp.core) this.renderStamp(room, room.memory.bp.core);
