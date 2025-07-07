@@ -2,6 +2,9 @@ import ServiceInterface from "../ServiceInterface";
 import { getDistanceTransform, getPositionsByPathCost } from "../utils/distance_transform/distance-transform.js";
 import Bot from "../Bot";
 import { Priority } from "../core/process-manager/types";
+import { EnergySource } from "../core/mining/mining";
+import TerrainAlgo from "../utils/TerrainAlgo";
+import { forEach, indexBy } from "lodash";
 
 type XY = [number, number];
 
@@ -10,6 +13,11 @@ type LabsData = {
   g2:[XY,XY,XY],
   g3:[XY,XY,XY],
   g4:[XY,XY,XY],
+}
+
+type Building = {
+  p: XY,
+  b: BuildableStructureConstant
 }
 
 declare global {
@@ -22,6 +30,7 @@ declare global {
       costMat?: number[];
       labs?: LabsData;
       constructionSites?: XY[];
+      buildings?: Building[];
     };
   }
 }
@@ -45,22 +54,31 @@ export class BasePlanningService implements ServiceInterface {
           if (!room.memory.bp) room.memory.bp = {};
           if (!room.memory.bp.distTrans) {
             this.findDistTrans(room);
-          } else if (room.memory.bp.distTrans && !room.memory.bp.upgrade) {
+          }
+          else if (room.memory.bp.distTrans && !room.memory.bp.upgrade) {
             this.findUpgrade(room);
-          } else if (room.memory.bp.distTrans && !room.memory.bp.core) {
+          }
+          else if (room.memory.bp.distTrans && !room.memory.bp.core) {
             this.findCore(room);
-          } else if (!room.memory.bp.costMat) {
+          }
+          else if (!room.memory.bp.costMat) {
             this.findCostMat(room);
-          } else if (!room.memory.bp.labs) {
+          }
+          else if (!room.memory.bp.labs) {
             this.findLabs(room);
-          } else if (!room.memory.bp.constructionSites) {
+          }
+          else if (!room.memory.bp.constructionSites) {
             this.findBuildingSites(room);
+          }
+          else if (!room.memory.bp.buildings) {
+            this.generateBuildings(room);
           }
 
           if (this.debug && room.memory.bp.upgrade) this.renderStamp(room, room.memory.bp.upgrade);
           if (this.debug && room.memory.bp.core) this.renderStamp(room, room.memory.bp.core);
           if (this.debug && room.memory.bp.labs) this.renderLabs(room, room.memory.bp.labs);
           if(this.debug && room.memory.bp.constructionSites) this.renderConstructionSites(room, room.memory.bp.constructionSites)
+          if(this.debug && room.memory.bp.buildings) this.renderBuildings(room, room.memory.bp.buildings)
 
           return { scheduleIn: { id: `bp.${roomId}`, t: 1 } };
         }
@@ -108,30 +126,37 @@ export class BasePlanningService implements ServiceInterface {
    */
   findCore(room: Room) {
     if (!room.memory.bp) room.memory.bp = {};
-    const distTrans = PathFinder.CostMatrix.deserialize(room.memory.bp.distTrans || []);
 
-    let cost: number = +Infinity;
-    let pos: number[] = [0, 0];
-    const positions = room.find(FIND_SOURCES).map(s => s.pos);
-    if (room.controller) positions.push(room.controller.pos);
-    for (let x = 0; x < 50; x++) {
-      for (let y = 0; y < 50; y++) {
-        if (distTrans.get(x, y) < 4) continue;
-        if (this.isStampBoxAllocated(room, { x: x, y: y, r: 3 })) continue;
-        const c =
-          positions
-            .map(p => p.getRangeTo(x, y))
-            .reduce((a, d) => {
-              return a + d;
-            }, 0) / positions.length;
-        if (cost > c) {
-          cost = c;
-          pos = [x, y];
+    const spawn = room.find(FIND_MY_SPAWNS)[0]
+
+    if(spawn) {
+      room.memory.bp.core = { x: spawn.pos.x + 1, y: spawn.pos.y + 1, r: 2 };
+    }else{
+      const distTrans = PathFinder.CostMatrix.deserialize(room.memory.bp.distTrans || []);
+      let cost: number = +Infinity;
+      let pos: number[] = [0, 0];
+      const positions = room.find(FIND_SOURCES).map(s => s.pos);
+      if (room.controller) positions.push(room.controller.pos);
+      for (let x = 0; x < 50; x++) {
+        for (let y = 0; y < 50; y++) {
+          if (distTrans.get(x, y) < 3) continue;
+          if (this.isStampBoxAllocated(room, { x: x, y: y, r: 3 })) continue;
+          const c =
+            positions
+              .map(p => p.getRangeTo(x, y))
+              .reduce((a, d) => {
+                return a + d;
+              }, 0) / positions.length;
+          if (cost > c) {
+            cost = c;
+            pos = [x, y];
+          }
         }
       }
+
+      room.memory.bp.core = { x: pos[0], y: pos[1], r: 2 };
     }
 
-    room.memory.bp.core = { x: pos[0], y: pos[1], r: 3 };
     this.stampBoxAllocate(room, room.memory.bp.core);
   }
 
@@ -200,11 +225,14 @@ export class BasePlanningService implements ServiceInterface {
   findBuildingSites(room: Room) {
     if (!room.memory.bp) room.memory.bp = {};
     if (!room.memory.bp.core) return;
+    if (!room.memory.bp.upgrade) return;
     if (!room.memory.bp.allocated) return;
     if (!room.memory.bp.costMat) return;
     const distTrans = PathFinder.CostMatrix.deserialize(room.memory.bp.distTrans || []);
     const allocation = PathFinder.CostMatrix.deserialize(room.memory.bp.allocated);
     const costMat = PathFinder.CostMatrix.deserialize(room.memory.bp.costMat);
+    const core = room.memory.bp.core
+    const upgrade = room.memory.bp.upgrade
     let open: XY[] = [[room.memory.bp.core.x, room.memory.bp.core.y]];
     let close: XY[] = [];
     let diagStep = 5;
@@ -260,13 +288,136 @@ export class BasePlanningService implements ServiceInterface {
         [x, y + 1],
         [x - 1, y],
         [x + 1, y]
-      ].forEach(([x, y]) => {
+      ].filter(([x,y]) => {
+        // if collide with core
+        if(x >= core.x-core.r && x <= core.x+core.r && y >= core.y-core.r && y <= core.y+core.r) return false;
+        // if collide with upgrade
+        if(x >= upgrade.x-upgrade.r && x <= upgrade.x+upgrade.r && y >= upgrade.y-upgrade.r && y <= upgrade.y+upgrade.r) return false;
+        return true;
+      }).forEach(([x, y]) => {
         constructionSites.push([x, y]);
         allocation.set(x, y, 1);
       });
     });
 
     room.memory.bp.constructionSites = constructionSites;
+  }
+
+  generateBuildings(room: Room ){
+    if (!room.memory.bp) return;
+    if (!room.memory.bp?.distTrans) return;
+    if (!room.memory.bp?.constructionSites) return;
+    if (!room.memory.bp?.core) return;
+    if (!room.memory.bp?.upgrade) return;
+    if (!room.memory.bp?.labs) return;
+
+    const buildings:Building[] = [];
+    const taken = new PathFinder.CostMatrix()
+    const distTrans = PathFinder.CostMatrix.deserialize(room.memory.bp.distTrans)
+
+    const place = (x: number, y: number, b: BuildableStructureConstant) => {
+      if(taken.get(x, y) > 0) throw Error(`Error placing ${b}, position already taken ${x},${y}`)
+      buildings.push({p: [x, y], b: b});
+      taken.set(x,y, 1);
+    }
+
+
+    // from core
+    place(room.memory.bp.core.x-1, room.memory.bp.core.y-1, STRUCTURE_SPAWN)
+    place(room.memory.bp.core.x, room.memory.bp.core.y-1, STRUCTURE_SPAWN)
+    place(room.memory.bp.core.x+1, room.memory.bp.core.y-1, STRUCTURE_SPAWN)
+    place(room.memory.bp.core.x, room.memory.bp.core.y+1, STRUCTURE_STORAGE)
+    place(room.memory.bp.core.x+1, room.memory.bp.core.y+1, STRUCTURE_TERMINAL)
+    place(room.memory.bp.core.x-1, room.memory.bp.core.y+1, STRUCTURE_LINK)
+
+    // upgrade
+    place(room.memory.bp.upgrade.x, room.memory.bp.upgrade.y, STRUCTURE_LINK)
+
+    // extensions
+    let extensionCounter = this.getMaxBuildingType(STRUCTURE_EXTENSION)
+    _(room.memory.bp.constructionSites).forEach(site => {
+      if(extensionCounter <= 0) return false;
+      if(taken.get(site[0], site[1]) > 0) return;
+      place(site[0], site[1], STRUCTURE_EXTENSION);
+      extensionCounter--;
+      return;
+    }).run()
+
+    // labs
+    for(let i of [room.memory.bp.labs.g1, room.memory.bp.labs.g2, room.memory.bp.labs.g3, room.memory.bp.labs.g4]){
+      const [sink, source1, source2] = i;
+      if(taken.get(sink[0], sink[1]) === 0) place(sink[0], sink[1], STRUCTURE_LAB);
+      place(source1[0], source1[1], STRUCTURE_LAB);
+      place(source2[0], source2[1], STRUCTURE_LAB);
+    }
+
+    // links and containers
+    let linkCounter: number = this.getMaxBuildingType(STRUCTURE_LINK) - buildings.filter(b => b.b === STRUCTURE_LINK).length
+    let containerCounter: number = this.getMaxBuildingType(STRUCTURE_CONTAINER);
+    _(room.find(FIND_SOURCES).filter(s => s.pos.findInRange(FIND_HOSTILE_STRUCTURES, 10).length === 0))
+      .forEach(s => {
+        if(linkCounter <= 0) return false;
+        const sourceRing = TerrainAlgo.ring(s.pos.x, s.pos.y, 1)
+          .filter(xy => room.getTerrain().get(...xy) !== TERRAIN_MASK_WALL && taken.get(...xy) === 0);
+        if(sourceRing.length > 0){
+          const cont = sourceRing[0];
+          place(cont[0], cont[1], STRUCTURE_CONTAINER)
+          containerCounter--;
+          const containerRing = TerrainAlgo.ring(...cont, 1)
+          .filter(xy => room.getTerrain().get(...xy) !== TERRAIN_MASK_WALL && distTrans.get(...xy) >=2 && taken.get(...xy) === 0);
+          if(containerRing.length > 0){
+            const link = containerRing[0]
+            place(link[0], link[1], STRUCTURE_LINK)
+            linkCounter--;
+          }
+        }
+        return;
+    }).run()
+
+    // last index
+    let lastIndex: number = room.memory.bp.constructionSites.findIndex(xy => {
+      return taken.get(...xy) === 0;
+    });
+
+    // factory
+    for(;lastIndex < room.memory.bp.constructionSites.length; lastIndex++){
+      const xy = room.memory.bp.constructionSites[lastIndex];
+      if(taken.get(...xy) === 0){
+        place(...xy, STRUCTURE_FACTORY);
+        break;
+      }
+    }
+
+
+    // extractor
+    // observer
+    for(;lastIndex < room.memory.bp.constructionSites.length; lastIndex++){
+      const xy = room.memory.bp.constructionSites[lastIndex];
+      if(taken.get(...xy) === 0){
+        place(...xy, STRUCTURE_OBSERVER);
+        break;
+      }
+    }
+    // power spawn
+    for(;lastIndex < room.memory.bp.constructionSites.length; lastIndex++){
+      const xy = room.memory.bp.constructionSites[lastIndex];
+      if(taken.get(...xy) === 0){
+        place(...xy, STRUCTURE_POWER_SPAWN);
+        break;
+      }
+    }
+    // nuker
+    for(;lastIndex < room.memory.bp.constructionSites.length; lastIndex++){
+      const xy = room.memory.bp.constructionSites[lastIndex];
+      if(taken.get(...xy) === 0){
+        place(...xy, STRUCTURE_NUKER);
+        break;
+      }
+    }
+
+
+    room.memory.bp.buildings = buildings
+
   }
 
   private renderStamp(room: Room, stamp: StampBox) {
@@ -351,6 +502,26 @@ export class BasePlanningService implements ServiceInterface {
 
   }
 
+  private renderBuildings(room: Room, buildings: Building[]){
+    const mapper = {
+        [STRUCTURE_SPAWN]: "🟢",
+        [STRUCTURE_STORAGE]: "🏦",
+        [STRUCTURE_TERMINAL]: "🚅",
+        [STRUCTURE_FACTORY]: "🏭",
+        [STRUCTURE_LINK]: "📡",
+        [STRUCTURE_EXTENSION]: "🟡",
+        [STRUCTURE_LAB]: "🎛",
+        [STRUCTURE_CONTAINER]: "🫙",
+        [STRUCTURE_OBSERVER]: "👁️",
+        [STRUCTURE_POWER_SPAWN]: "🔥",
+        [STRUCTURE_NUKER]: "💥",
+      }
+    buildings.forEach(building => {
+      // @ts-ignore
+      room.visual.text(mapper[building.b] !== undefined ? mapper[building.b] : "" , building.p[0], building.p[1], )
+    })
+  }
+
   private findArea(
     pos: RoomPosition,
     step: number,
@@ -401,4 +572,9 @@ export class BasePlanningService implements ServiceInterface {
     }
     return close[0];
   }
+
+  private getMaxBuildingType(t: BuildableStructureConstant): number{
+    return Math.max(...Object.values(CONTROLLER_STRUCTURES[t]));
+  }
 }
+
