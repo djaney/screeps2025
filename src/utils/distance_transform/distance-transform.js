@@ -456,7 +456,7 @@ function getLevels(sourceVertices, exit, capacityMap, roomName) {
 
 function getEdgesFrom(node) {
   const result = [];
-  for (i = 0; i <= 8; i++) {
+  for (let i = 0; i <= 8; i++) {
     result.push(node | (i << DIR_SHIFT));
   }
   return result;
