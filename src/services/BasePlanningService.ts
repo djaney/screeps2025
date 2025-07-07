@@ -15,6 +15,7 @@ type LabsData = {
   g2:[XY,XY,XY],
   g3:[XY,XY,XY],
   g4:[XY,XY,XY],
+  r: XY[]
 }
 
 type Building = {
@@ -32,6 +33,7 @@ declare global {
       costMat?: number[];
       labs?: LabsData;
       constructionSites?: XY[];
+      potentialRoad?: number[];
       buildings?: Building[];
       ramparts?: XY[];
     };
@@ -70,14 +72,14 @@ export class BasePlanningService implements ServiceInterface {
           else if (!room.memory.bp.labs) {
             this.findLabs(room);
           }
-          else if (!room.memory.bp.constructionSites) {
+          else if (!room.memory.bp.constructionSites || !room.memory.bp.potentialRoad) {
             this.findBuildingSites(room);
           }
-          else if (!room.memory.bp.buildings) {
+          else if ((Game.rooms.sim || Game.cpu.tickLimit >= 50) && !room.memory.bp.buildings) {
             this.generateBuildings(room);
           }
 
-          else if (!room.memory.bp.ramparts) {
+          else if ((Game.rooms.sim || Game.cpu.tickLimit >= 50) && !room.memory.bp.ramparts) {
             this.generateRamparts(room);
           }
 
@@ -222,7 +224,16 @@ export class BasePlanningService implements ServiceInterface {
     positions.forEach(([x, y]) => allocation.set(x, y, 1));
 
     // keep roads clear
-    allocation.set(foundArea[0], foundArea[1]+3, 1)
+    const road: XY[] = [
+      [foundArea[0], foundArea[1]+3],
+      [foundArea[0]+1, foundArea[1]+2],
+      [foundArea[0]+2, foundArea[1]+1],
+      [foundArea[0]+3, foundArea[1]],
+    ];
+    road.forEach(([x, y]) => {
+      allocation.set(x, y, 1);
+    })
+
     allocation.set(foundArea[0]+1, foundArea[1]+2, 1)
     allocation.set(foundArea[0]+2, foundArea[1]+1, 1)
     allocation.set(foundArea[0]+3, foundArea[1], 1)
@@ -232,6 +243,7 @@ export class BasePlanningService implements ServiceInterface {
       g2: [positions[3], positions[4], positions[5]],
       g3: [positions[0], positions[6], positions[7]],
       g4: [positions[3], positions[8], positions[9]],
+      r: road,
     }
     room.memory.bp.allocated = allocation.serialize();
   }
@@ -245,6 +257,7 @@ export class BasePlanningService implements ServiceInterface {
     const distTrans = PathFinder.CostMatrix.deserialize(room.memory.bp.distTrans || []);
     const allocation = PathFinder.CostMatrix.deserialize(room.memory.bp.allocated);
     const costMat = PathFinder.CostMatrix.deserialize(room.memory.bp.costMat);
+    const potentialRoad = new PathFinder.CostMatrix();
     const core = room.memory.bp.core
     const upgrade = room.memory.bp.upgrade
     let open: XY[] = [[room.memory.bp.core.x, room.memory.bp.core.y]];
@@ -296,6 +309,21 @@ export class BasePlanningService implements ServiceInterface {
       if (room.getTerrain().get(x, y) > 0) return;
       if (distTrans.get(x, y) <= 1) return;
       if (allocation.get(x, y) > 0) return;
+
+      // add potential road
+      [
+        [x-1, y-1],
+        [x+1, y-1],
+        [x-1, y+1],
+        [x+1, y+1],
+        [x-2, y],
+        [x+2, y],
+        [x, y-2],
+        [x, y+2],
+      ].forEach(p => {
+        potentialRoad.set(p[0], p[1], 1)
+      });
+
       [
         [x, y],
         [x, y - 1],
@@ -315,6 +343,7 @@ export class BasePlanningService implements ServiceInterface {
       });
     });
 
+    room.memory.bp.potentialRoad = potentialRoad.serialize();
     room.memory.bp.constructionSites = constructionSites;
   }
 
@@ -325,10 +354,12 @@ export class BasePlanningService implements ServiceInterface {
     if (!room.memory.bp?.core) return;
     if (!room.memory.bp?.upgrade) return;
     if (!room.memory.bp?.labs) return;
+    if (!room.memory.bp?.potentialRoad) return;
 
     const buildings:Building[] = [];
     const taken = new PathFinder.CostMatrix()
     const distTrans = PathFinder.CostMatrix.deserialize(room.memory.bp.distTrans)
+    const potentialRoad = PathFinder.CostMatrix.deserialize(room.memory.bp.potentialRoad)
 
     const place = (x: number, y: number, b: BuildableStructureConstant) => {
       if(taken.get(x, y) > 0) throw Error(`Error placing ${b}, position already taken ${x},${y}`)
@@ -365,6 +396,9 @@ export class BasePlanningService implements ServiceInterface {
       place(source1[0], source1[1], STRUCTURE_LAB);
       place(source2[0], source2[1], STRUCTURE_LAB);
     }
+    room.memory.bp.labs.r.forEach(([x,y]) => {
+      place(x, y, STRUCTURE_ROAD);
+    })
 
     // links and containers
     let linkCounter: number = this.getMaxBuildingType(STRUCTURE_LINK) - buildings.filter(b => b.b === STRUCTURE_LINK).length
@@ -444,16 +478,9 @@ export class BasePlanningService implements ServiceInterface {
     for(let i in tmpBuildings){
       const building = tmpBuildings[Number(i)];
       const [x, y] = building.p
-      // if(STRUCTURE_ROAD === building.b) continue;
-      // if(STRUCTURE_RAMPART === building.b) continue;
-      // if(STRUCTURE_CONTAINER === building.b) continue;
-      // if(STRUCTURE_LINK === building.b) continue;
-      // if(STRUCTURE_RAMPART === building.b) continue;
       TerrainAlgo.ring(x, y, 1).forEach(p => {
-        if(taken.get(...p) === 0) place(...p, STRUCTURE_ROAD);
+        if(taken.get(...p) === 0 && potentialRoad.get(...p) > 0) place(...p, STRUCTURE_ROAD);
       })
-
-
     }
 
 
