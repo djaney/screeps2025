@@ -19,5 +19,5 @@ export declare function getPositionsByPathCost(
 export declare function getMincut(
   roomName: string,
   sources: RoomPosition[],
-  costMatrix: CostMatrix
+  costMatrix?: CostMatrix
 ): RoomPosition[]

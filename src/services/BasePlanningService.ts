@@ -1,10 +1,12 @@
 import ServiceInterface from "../ServiceInterface";
-import { getDistanceTransform, getPositionsByPathCost } from "../utils/distance_transform/distance-transform.js";
+import {
+  getDistanceTransform,
+  getMincut,
+  getPositionsByPathCost
+} from "../utils/distance_transform/distance-transform.js";
 import Bot from "../Bot";
 import { Priority } from "../core/process-manager/types";
-import { EnergySource } from "../core/mining/mining";
 import TerrainAlgo from "../utils/TerrainAlgo";
-import { forEach, indexBy } from "lodash";
 
 type XY = [number, number];
 
@@ -31,6 +33,7 @@ declare global {
       labs?: LabsData;
       constructionSites?: XY[];
       buildings?: Building[];
+      ramparts?: XY[];
     };
   }
 }
@@ -72,6 +75,10 @@ export class BasePlanningService implements ServiceInterface {
           }
           else if (!room.memory.bp.buildings) {
             this.generateBuildings(room);
+          }
+
+          else if (!room.memory.bp.ramparts) {
+            this.generateRamparts(room);
           }
 
           if (this.debug && room.memory.bp.upgrade) this.renderStamp(room, room.memory.bp.upgrade);
@@ -213,6 +220,13 @@ export class BasePlanningService implements ServiceInterface {
     }
     const positions = generatePositions(foundArea[0], foundArea[1]);
     positions.forEach(([x, y]) => allocation.set(x, y, 1));
+
+    // keep roads clear
+    allocation.set(foundArea[0], foundArea[1]+3, 1)
+    allocation.set(foundArea[0]+1, foundArea[1]+2, 1)
+    allocation.set(foundArea[0]+2, foundArea[1]+1, 1)
+    allocation.set(foundArea[0]+3, foundArea[1], 1)
+
     room.memory.bp.labs = {
       g1: [positions[0], positions[1], positions[2]],
       g2: [positions[3], positions[4], positions[5]],
@@ -293,6 +307,7 @@ export class BasePlanningService implements ServiceInterface {
         if(x >= core.x-core.r && x <= core.x+core.r && y >= core.y-core.r && y <= core.y+core.r) return false;
         // if collide with upgrade
         if(x >= upgrade.x-upgrade.r && x <= upgrade.x+upgrade.r && y >= upgrade.y-upgrade.r && y <= upgrade.y+upgrade.r) return false;
+        if (allocation.get(x, y) > 0) return;
         return true;
       }).forEach(([x, y]) => {
         constructionSites.push([x, y]);
@@ -389,7 +404,6 @@ export class BasePlanningService implements ServiceInterface {
     }
 
 
-    // extractor
     // observer
     for(;lastIndex < room.memory.bp.constructionSites.length; lastIndex++){
       const xy = room.memory.bp.constructionSites[lastIndex];
@@ -414,10 +428,56 @@ export class BasePlanningService implements ServiceInterface {
         break;
       }
     }
+    // tower
+    let towerCount = this.getMaxBuildingType(STRUCTURE_TOWER)
+    for(;lastIndex < room.memory.bp.constructionSites.length; lastIndex++){
+      const xy = room.memory.bp.constructionSites[lastIndex];
+      towerCount--;
+      if(taken.get(...xy) === 0){
+        place(...xy, STRUCTURE_TOWER);
+        if(towerCount <= 0) break;
+      }
+    }
+
+    // roads within grid
+    const tmpBuildings = _.cloneDeep(buildings)
+    for(let i in tmpBuildings){
+      const building = tmpBuildings[Number(i)];
+      const [x, y] = building.p
+      // if(STRUCTURE_ROAD === building.b) continue;
+      // if(STRUCTURE_RAMPART === building.b) continue;
+      // if(STRUCTURE_CONTAINER === building.b) continue;
+      // if(STRUCTURE_LINK === building.b) continue;
+      // if(STRUCTURE_RAMPART === building.b) continue;
+      TerrainAlgo.ring(x, y, 1).forEach(p => {
+        if(taken.get(...p) === 0) place(...p, STRUCTURE_ROAD);
+      })
+
+
+    }
 
 
     room.memory.bp.buildings = buildings
 
+  }
+
+  generateRamparts(room:Room){
+    if (!room.memory.bp) return;
+    if (!room.memory.bp.buildings) return;
+    const buildings = room.memory.bp.buildings;
+    const sources = buildings.map(b => room.getPositionAt(b.p[0], b.p[1])) as RoomPosition[]
+    const cut = getMincut(
+      room.name,
+      sources
+    )
+
+    room.memory.bp.ramparts = cut.map(p => {
+      return [p.x, p.y]
+    });
+    const newBuildings = room.memory.bp.ramparts.map(xy => {
+      return {p: xy, b: STRUCTURE_RAMPART}
+    });
+    room.memory.bp.buildings = room.memory.bp.buildings.concat(newBuildings)
   }
 
   private renderStamp(room: Room, stamp: StampBox) {
@@ -515,10 +575,26 @@ export class BasePlanningService implements ServiceInterface {
         [STRUCTURE_OBSERVER]: "👁️",
         [STRUCTURE_POWER_SPAWN]: "🔥",
         [STRUCTURE_NUKER]: "💥",
+        [STRUCTURE_TOWER]: "🔫",
       }
     buildings.forEach(building => {
-      // @ts-ignore
-      room.visual.text(mapper[building.b] !== undefined ? mapper[building.b] : "" , building.p[0], building.p[1], )
+      if(building.b === STRUCTURE_RAMPART){
+        room.visual.rect(building.p[0]-0.5, building.p[1]-0.5, 1, 1, {
+          opacity: 0.4,
+          fill: "green"
+        })
+      }
+      else if(building.b === STRUCTURE_ROAD){
+        room.visual.rect(building.p[0]-0.5, building.p[1]-0.5, 1, 1, {
+          opacity: 0.4,
+          fill: "blue"
+        })
+      }
+      else{
+        // @ts-ignore
+        room.visual.text(mapper[building.b] !== undefined ? mapper[building.b] : "" , building.p[0], building.p[1], )
+      }
+
     })
   }
 
