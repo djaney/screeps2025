@@ -117,7 +117,9 @@ export class LogisticIndex {
         out.push(roomSinks[i])
       }
     }
-
+    out.sort((a, b) => {
+      return a.lastTick - b.lastTick;
+    })
     return out;
   }
 

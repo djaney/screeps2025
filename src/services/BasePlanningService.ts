@@ -18,7 +18,7 @@ type LabsData = {
   r: XY[]
 }
 
-type Building = {
+export type Building = {
   p: XY,
   b: BuildableStructureConstant
 }
@@ -58,6 +58,11 @@ export class BasePlanningService implements ServiceInterface {
         func: () => {
           const room = Game.rooms[roomId];
           if (!room) return;
+
+          if(room.memory.bp?.result !== undefined){
+            return;
+          }
+
           try{
             if (!room.memory.bp) room.memory.bp = {};
             if (!room.memory.bp.distTrans) {

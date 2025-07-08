@@ -1,6 +1,7 @@
-import { BaseNode, LResourceConstant } from "./logistics";
+import { BaseNode, LResourceConstant, LSinkInterface } from "./logistics";
 type TransferEntities = StructureSpawn|Creep
-export class TransferSink<T extends TransferEntities> extends BaseNode{
+export class TransferSink<T extends TransferEntities> extends BaseNode implements LSinkInterface<T>{
+  lastTick: number = 0;
   constructor(readonly id: Id<T>, readonly resource: LResourceConstant) {
     super()
   }
@@ -26,7 +27,10 @@ export class TransferSink<T extends TransferEntities> extends BaseNode{
   deliver(creep: Creep, amount: number): number {
     const other = Game.getObjectById(this.id);
     if (!other) return ERR_INVALID_TARGET;
+
     // @ts-ignore
-    return creep.transfer(other, this.resource, Math.min(amount, creep.store.getUsedCapacity(this.resource)));
+    const res = creep.transfer(other, this.resource, Math.min(amount, creep.store.getUsedCapacity(this.resource)));
+    if(res === OK) this.lastTick = Game.time;
+    return res;
   }
 }

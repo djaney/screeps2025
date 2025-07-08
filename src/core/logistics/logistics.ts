@@ -24,6 +24,7 @@ export interface LSinkInterface<T extends LSinkConstant> {
   id: Id<T>;
   resource: LResourceConstant;
   allocation: NodeAllocation;
+  lastTick: number
   getRemainingValue(): number;
   freeAllocation(id: Id<Creep>): void;
   freeAllAllocations(): void;
