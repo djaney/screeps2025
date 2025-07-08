@@ -18,7 +18,7 @@ export default abstract class BaseCreepService implements ServiceInterface{
     let name;
     let nameIdx = 0
     while (true){
-      name = [this.prefix, ...moreInfo, nameIdx].join(".");
+      name = [this.prefix, ...moreInfo, Game.time ,nameIdx].join(".");
       if(!Game.creeps[name]){
         return name;
       }

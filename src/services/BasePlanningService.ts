@@ -402,6 +402,17 @@ export class BasePlanningService implements ServiceInterface {
     // upgrade
     place(room.memory.bp.upgrade.x, room.memory.bp.upgrade.y, STRUCTURE_LINK)
 
+    // tower
+    let towerCount = this.getMaxBuildingType(STRUCTURE_TOWER)
+    _(room.memory.bp.constructionSites).forEach(site => {
+      if(towerCount <= 0) return false;
+      if(taken.get(site[0], site[1]) > 0) return;
+      place(site[0], site[1], STRUCTURE_TOWER);
+      towerCount--;
+      return;
+    }).run()
+
+
     // extensions
     let extensionCounter = this.getMaxBuildingType(STRUCTURE_EXTENSION)
     _(room.memory.bp.constructionSites).forEach(site => {
@@ -483,16 +494,6 @@ export class BasePlanningService implements ServiceInterface {
       if(taken.get(...xy) === 0){
         place(...xy, STRUCTURE_NUKER);
         break;
-      }
-    }
-    // tower
-    let towerCount = this.getMaxBuildingType(STRUCTURE_TOWER)
-    for(;lastIndex < room.memory.bp.constructionSites.length; lastIndex++){
-      const xy = room.memory.bp.constructionSites[lastIndex];
-      towerCount--;
-      if(taken.get(...xy) === 0){
-        place(...xy, STRUCTURE_TOWER);
-        if(towerCount <= 0) break;
       }
     }
 

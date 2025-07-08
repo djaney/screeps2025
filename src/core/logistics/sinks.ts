@@ -1,5 +1,5 @@
 import { BaseNode, LResourceConstant, LSinkInterface } from "./logistics";
-type TransferEntities = StructureSpawn|Creep
+type TransferEntities = StructureSpawn|Creep|StructureExtension|StructureTower
 export class TransferSink<T extends TransferEntities> extends BaseNode implements LSinkInterface<T>{
   lastTick: number = 0;
   constructor(readonly id: Id<T>, readonly resource: LResourceConstant) {

@@ -70,7 +70,7 @@ export default class SpawnManager implements ServiceInterface {
     }
     // spawn creep
     const res = availableSpawn.spawnCreep(item.body, item.name)
-    if(res === 0){
+    if(res === OK){
       // check again next tick
       this.bot.enqueueProcessIn(id, {
         priority: Priority.NORMAL,

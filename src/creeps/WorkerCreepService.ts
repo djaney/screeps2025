@@ -132,14 +132,15 @@ export default class WorkerCreepService extends BaseCreepService {
         const id = `analyze.construction.${roomId}`
         const room = Game.rooms[roomId];
         if(!room) return;
-        if(!room.memory.bp) return;
+        if(!room.memory.bp) return {scheduleIn:{id, t: 5}}
         if(room.memory.bp.result === undefined) {
-          return {scheduleIn:{id, t: 1}}
+          return {scheduleIn:{id, t: 5}}
         }
         else if(!room.memory.bp.result) {
           return;
         }
-        if((room.controller?.level || 0) <= 1) return {scheduleIn:{id, t: 5}}
+        // start building only in RCL 3
+        if((room.controller?.level || 0) < 3) return {scheduleIn:{id, t: 10}}
         if(room.find(FIND_MY_CONSTRUCTION_SITES).length > 0) return {scheduleIn:{id, t: 5}}
         const buildings = room.memory.bp?.buildings;
         if(!buildings) return;
@@ -175,8 +176,13 @@ export default class WorkerCreepService extends BaseCreepService {
   analyzeEnergyNeeds(roomId: string) {
     const room = Game.rooms[roomId];
     if (!room) return;
-    room.find(FIND_MY_SPAWNS).forEach(s => {
-      this.logisticsIndex.addSink(new TransferSink(s.id, RESOURCE_ENERGY))
+    room.find(FIND_MY_STRUCTURES).forEach(s => {
+      // @ts-ignore
+      if(s.store?.getCapacity(RESOURCE_ENERGY)){
+        // @ts-ignore
+        this.logisticsIndex.addSink(new TransferSink(s.id, RESOURCE_ENERGY))
+      }
+
     })
   }
 
@@ -216,7 +222,7 @@ export default class WorkerCreepService extends BaseCreepService {
     const minerCount = this.getCreepTypeCount(roomId, WorkerType.MINER);
     const builderCount = this.getCreepTypeCount(roomId, WorkerType.BUILDER);
 
-    if(haulerBodyCount < minerBodyCount){
+    if(haulerBodyCount < minerBodyCount*3){
       let parts: BodyPartConstant[]
       if(haulerBodyCount === 0){
         parts = SMALL_HAULER
@@ -241,7 +247,14 @@ export default class WorkerCreepService extends BaseCreepService {
       );
     }
     else if(this.miningIndex.slotCount() > minerCount){
-      this.bot.enqueueSpawn(roomId, this.generateWorkerCreepName(WorkerType.MINER, roomId), SMALL_MINER, n => {
+      const parts = [MOVE, CARRY];
+      const initialCost: number = parts.reduce((a,p) => a + BODYPART_COST[p], 0);
+      const workCount = Math.floor((room.energyCapacityAvailable - initialCost) / (BODYPART_COST[WORK]+BODYPART_COST[CARRY]));
+      this.bot.enqueueSpawn(
+        roomId,
+        this.generateWorkerCreepName(WorkerType.MINER, roomId),
+        parts.concat(Array(workCount).fill(WORK), Array(workCount).fill(CARRY)),
+          n => {
         this.runCreep(n);
         this.enqueueAnalyzeRoomSpawns(roomId);
       });
@@ -249,7 +262,7 @@ export default class WorkerCreepService extends BaseCreepService {
     else if(3 > builderCount){
       const parts = [MOVE, CARRY];
       const initialCost: number = parts.reduce((a,p) => a + BODYPART_COST[p], 0);
-      const workCount = Math.floor(room.energyCapacityAvailable - initialCost) / BODYPART_COST[WORK]
+      const workCount = Math.floor((room.energyCapacityAvailable - initialCost) / BODYPART_COST[WORK]);
       this.bot.enqueueSpawn(
         roomId, this.generateWorkerCreepName(WorkerType.BUILDER, roomId),
         parts.concat(Array(workCount).fill(WORK)),
@@ -379,7 +392,31 @@ export default class WorkerCreepService extends BaseCreepService {
     if(creep.pos.getRangeTo(sites[0].pos) > 1){
       creep.travelTo(sites[0].pos)
     }else{
-      creep.build(sites[0])
+      const totalBuildPower = Math.min(BUILD_POWER * creep.getActiveBodyparts(WORK), creep.store.getUsedCapacity(RESOURCE_ENERGY))
+      const remaining = sites[0].progressTotal - sites[0].progress;
+      // expect new building next tick
+      if(remaining <= totalBuildPower){
+        const pos = sites[0].pos
+        this.bot.enqueueProcessIn(
+          `new.bldg.${roomId}.${pos.x}.${pos.y}`,
+          {
+            priority: Priority.LOW,
+            func: () => {
+              pos.lookFor(LOOK_STRUCTURES).forEach(struct => {
+                // @ts-ignore
+                if(!struct.my) return;
+                // @ts-ignore
+                if(struct.store?.getCapacity(RESOURCE_ENERGY)){
+                  // @ts-ignore
+                  this.logisticsIndex.addSink(new TransferSink<RESOURCE_ENERGY>(struct.id))
+                }
+              })
+            }
+          },
+          1
+        )
+      }
+      creep.build(sites[0]);
     }
   }
 

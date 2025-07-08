@@ -1,5 +1,5 @@
 export type LSourceConstant = Creep
-export type LSinkConstant = StructureSpawn|Creep
+export type LSinkConstant = StructureSpawn|Creep|StructureExtension|StructureTower
 export type LResourceConstant = RESOURCE_ENERGY
 export type NodeAllocation = {[id in Id<Creep>]?:AllocationValue}
 export type AllocationValue = { id: Id<Creep>, value: number }
