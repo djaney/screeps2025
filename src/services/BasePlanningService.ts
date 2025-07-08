@@ -84,6 +84,16 @@ export class BasePlanningService implements ServiceInterface {
 
             else if ((Game.rooms.sim || Game.cpu.tickLimit >= 50) && !room.memory.bp.ramparts) {
               this.generateRamparts(room);
+            }else{
+              // DONE
+              room.memory.bp = {
+                result: true,
+                buildings: room.memory.bp.buildings,
+                core: room.memory.bp.core,
+                upgrade: room.memory.bp.upgrade,
+                labs: room.memory.bp.labs,
+              };
+              return;
             }
           }catch (e){
             room.memory.bp = {err: String(e), result: false};
