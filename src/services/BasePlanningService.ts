@@ -63,7 +63,10 @@ export class BasePlanningService implements ServiceInterface {
         func: () => {
           const room = Game.rooms[roomId];
           if (!room) return;
+          // only if controller claimed
+          if(!room.controller?.my) return;
 
+          // defined result means already done
           if (room.memory.bp?.result !== undefined) {
             return;
           }
