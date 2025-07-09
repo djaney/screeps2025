@@ -457,7 +457,6 @@ export default class WorkerCreepService extends BaseCreepService {
         }
       }
     )
-    console.log("neighbors", neighbors.length);
     if(neighbors.length === 0) return
     neighbors.sort((a, b) => {
       return a.store.getUsedCapacity(RESOURCE_ENERGY) - b.store.getUsedCapacity(RESOURCE_ENERGY)
