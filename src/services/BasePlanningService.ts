@@ -160,6 +160,8 @@ export class BasePlanningService implements ServiceInterface {
 
     const spawn = room.find(FIND_MY_SPAWNS)[0];
 
+    if(!spawn && "sim" in Game.rooms) return; // simulations need spawn
+
     if (spawn) {
       room.memory.bp.core = { x: spawn.pos.x + 1, y: spawn.pos.y + 1, r: 2 };
     } else {

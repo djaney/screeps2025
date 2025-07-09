@@ -215,6 +215,7 @@ export default class WorkerCreepService extends BaseCreepService {
   private analyzeRoomSpawns(roomId: string) {
     const room = Game.rooms[roomId];
     if (!room) return;
+    if (!room.energyAvailable) return;
     // if there is a spawn and a resource
     const haulerBodyCount = this.getCreepTypeBodyPartCount(roomId, WorkerType.HAULER, CARRY);
     const minerBodyCount = this.getCreepTypeBodyPartCount(roomId, WorkerType.MINER, WORK);
