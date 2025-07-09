@@ -259,7 +259,6 @@ export default class WorkerCreepService extends BaseCreepService {
         }
       );
     } else if (3 > builderCount) {
-      console.log("builderCount", builderCount)
       const parts = [MOVE, CARRY];
       const initialCost: number = parts.reduce((a, p) => a + BODYPART_COST[p], 0);
       const workCount = Math.floor((room.energyCapacityAvailable - initialCost) / BODYPART_COST[WORK]);
