@@ -16,6 +16,7 @@ export default class SpawnManager implements ServiceInterface {
   constructor(readonly bot: Bot) {}
 
   initialize() {}
+  initializeRoom(roomId: string) {}
 
   enqueueSpawn(roomId: string, name: string, body: BodyPartConstant[], callback: QueueCallback) {
     const room = Game.rooms[roomId];
@@ -28,66 +29,79 @@ export default class SpawnManager implements ServiceInterface {
       this.queue[roomId] = [];
     }
     this.queue[roomId]?.push({ name, body, callback });
-    this.doSpawn(roomId)
-
+    this.doSpawn(roomId);
   }
 
-  doSpawn(roomId: string){
+  doSpawn(roomId: string) {
     const room = Game.rooms[roomId];
-    if(!room) return;
+    if (!room) return;
     const roomQueue = this.queue[roomId];
-    if(!roomQueue) return;
+    if (!roomQueue) return;
 
-    const id = `spawn.${roomId}`
-    const idx = 0
+    const id = `spawn.${roomId}`;
+    const idx = 0;
 
     // if nothing in queue, do nothing
-    if(roomQueue.length === 0){
-      return
+    if (roomQueue.length === 0) {
+      return;
     }
 
     // if no energy available, try again next tick
-    const item = roomQueue[idx]
-    if(this.getSpawnCost(item.body) > room.energyAvailable){
-      this.bot.enqueueProcessIn(id, {
-        priority: Priority.NORMAL,
-        func: () => this.doSpawn(roomId)
-      }, 1)
-      return
+    const item = roomQueue[idx];
+    if (this.getSpawnCost(item.body) > room.energyAvailable) {
+      this.bot.enqueueProcessIn(
+        id,
+        {
+          priority: Priority.NORMAL,
+          func: () => this.doSpawn(roomId)
+        },
+        1
+      );
+      return;
     }
 
     // if no available spawns, try again after remaining time
-    const availableSpawn = room.find(FIND_MY_SPAWNS).find(s => !s.spawning)
-    if(!availableSpawn){
+    const availableSpawn = room.find(FIND_MY_SPAWNS).find(s => !s.spawning);
+    if (!availableSpawn) {
       const remainingTime = room.find(FIND_MY_SPAWNS).reduce((a, s) => {
-        return Math.min(a, s.spawning?.remainingTime || +Infinity)
+        return Math.min(a, s.spawning?.remainingTime || +Infinity);
       }, +Infinity);
-      this.bot.enqueueProcessIn(id, {
-        priority: Priority.NORMAL,
-        func: () => this.doSpawn(roomId)
-      }, remainingTime+1)
-      return
+      this.bot.enqueueProcessIn(
+        id,
+        {
+          priority: Priority.NORMAL,
+          func: () => this.doSpawn(roomId)
+        },
+        remainingTime + 1
+      );
+      return;
     }
     // spawn creep
-    const res = availableSpawn.spawnCreep(item.body, item.name)
-    if(res === OK){
+    const res = availableSpawn.spawnCreep(item.body, item.name);
+    if (res === OK) {
       // check again next tick
-      this.bot.enqueueProcessIn(id, {
-        priority: Priority.NORMAL,
-        func: () => this.doSpawn(roomId)
-      }, 1)
+      this.bot.enqueueProcessIn(
+        id,
+        {
+          priority: Priority.NORMAL,
+          func: () => this.doSpawn(roomId)
+        },
+        1
+      );
 
-      this.bot.enqueueProcessIn(`${id}.cb.${item.name}`, {
-        priority: Priority.NORMAL,
-        func: () => item.callback(item.name)
-      }, item.body.length * CREEP_SPAWN_TIME)
-    }else{
-      console.log(`Spawning error ${res}: ${JSON.stringify(item.body)} @ ${roomId}`)
+      this.bot.enqueueProcessIn(
+        `${id}.cb.${item.name}`,
+        {
+          priority: Priority.NORMAL,
+          func: () => item.callback(item.name)
+        },
+        item.body.length * CREEP_SPAWN_TIME
+      );
+    } else {
+      console.log(`Spawning error ${res}: ${JSON.stringify(item.body)} @ ${roomId}`);
     }
     // remove from queue
     roomQueue.splice(idx, 1);
-
-
   }
 
   getSpawnCost(body: CreepBody) {

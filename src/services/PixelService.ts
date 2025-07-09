@@ -9,7 +9,7 @@ export default class PixelService implements ServiceInterface {
     this.bot.enqueueProcess({
       priority: Priority.LOW,
       func: () => {
-        if("sim" in Game.rooms || !Game.cpu.generatePixel) return;
+        if ("sim" in Game.rooms || !Game.cpu.generatePixel) return;
         let bucketSize = Game.cpu.bucket;
         if (Game.cpu.bucket >= 10000) {
           Game.cpu.generatePixel();
@@ -24,4 +24,6 @@ export default class PixelService implements ServiceInterface {
       }
     });
   }
+
+  initializeRoom(roomId: string) {}
 }

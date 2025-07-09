@@ -16,6 +16,7 @@ export default class ProcessManager implements ServiceInterface {
   schedule: Schedule = {};
 
   initialize() {}
+  initializeRoom(roomId: string) {}
 
   /**
    * Enqueue unit
