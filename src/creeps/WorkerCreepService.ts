@@ -403,7 +403,7 @@ export default class WorkerCreepService extends BaseCreepService {
       this.runController(creep);
       return;
     }
-    this.shareEnergyToNeighbors(creep);
+
     if (creep.pos.getRangeTo(sites[0].pos) > 1) {
       creep.travelTo(sites[0].pos);
     } else {
@@ -435,6 +435,7 @@ export default class WorkerCreepService extends BaseCreepService {
         );
       }
     }
+    this.shareEnergyToNeighbors(creep);
     creep.build(sites[0]);
   }
 
