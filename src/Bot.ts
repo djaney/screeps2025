@@ -33,12 +33,6 @@ export default class Bot {
         throw new Error(`Creep prefix exists ${s.prefix}`)
       }
       this.creepServicePrefixIndex[s.prefix] = s
-      s.initialize();
-    }
-
-    // initialize services
-    for(let s of Object.values(this.services)){
-      s.initialize();
     }
 
     // run existing creeps
@@ -46,6 +40,15 @@ export default class Bot {
       const prefix = creepName.split('.').shift();
       if(!prefix) continue;
       this.creepServicePrefixIndex[prefix]?.runCreep(creepName);
+    }
+
+    for(let s of Object.values(this.creepServices)){
+      s.initialize();
+    }
+
+    // initialize services
+    for(let s of Object.values(this.services)){
+      s.initialize();
     }
 
   }
