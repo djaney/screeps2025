@@ -387,10 +387,9 @@ export default class WorkerCreepService extends BaseCreepService {
     if (!room) return;
     if (!room.controller) return;
     this.shareEnergyToNeighbors(creep);
+    creep.upgradeController(room.controller);
     if (creep.pos.getRangeTo(room.controller.pos) > 1) {
       creep.travelTo(room.controller.pos);
-    } else {
-      creep.upgradeController(room.controller);
     }
   }
 
@@ -435,8 +434,8 @@ export default class WorkerCreepService extends BaseCreepService {
           1
         );
       }
-      creep.build(sites[0]);
     }
+    creep.build(sites[0]);
   }
 
   /*
