@@ -31,59 +31,62 @@ export default class WorkerCreepService extends BaseCreepService {
 
   miningIndex: MiningIndex = new MiningIndex();
   logisticsIndex: LogisticIndex = new LogisticIndex();
-  creepsByType: CreepsByType = {}
+  creepsByType: CreepsByType = {};
 
   initialize() {
     for (const roomId in Game.rooms) {
-      this.analyzeSources(roomId);
-      this.analyzeConstruction(roomId);
-      this.enqueueAnalyzeRoomSpawns(roomId);
-      this.analyzeEnergyNeeds(roomId);
+      this.initializeRoom(roomId);
     }
   }
 
+  initializeRoom(roomId: string) {
+    super.initializeRoom(roomId);
+    this.analyzeSources(roomId);
+    this.analyzeConstruction(roomId);
+    this.enqueueAnalyzeRoomSpawns(roomId);
+    this.analyzeEnergyNeeds(roomId);
+  }
 
-  registerCreep(name: string, roomId: string, type: WorkerType){
-    if(!_.has(this.creepsByType, [roomId, type])){
-      _.set(this.creepsByType, [roomId, type], [])
+  registerCreep(name: string, roomId: string, type: WorkerType) {
+    if (!_.has(this.creepsByType, [roomId, type])) {
+      _.set(this.creepsByType, [roomId, type], []);
     }
     const creepList: string[] = _.get(this.creepsByType, [roomId, type]);
-    if(!creepList.includes(name)){
-      creepList.push(name)
+    if (!creepList.includes(name)) {
+      creepList.push(name);
     }
-
   }
 
-  getCreepTypeBodyPartCount(roomId: string, type: WorkerType, part: BodyPartConstant){
-    if(!_.has(this.creepsByType, [roomId, type])){
-      _.set(this.creepsByType, [roomId, type], [])
-    }
-    const creepList: string[] = _.get(this.creepsByType, [roomId, type]);
-    return creepList.reduce((a, cName) => {
-      const creep = Game.creeps[cName];
-      if(!creep) return a;
-      return a + creep.getActiveBodyparts(part)
-    }, 0)
-  }
-
-  getCreepTypeCount(roomId: string, type: WorkerType){
-    if(!_.has(this.creepsByType, [roomId, type])){
-      _.set(this.creepsByType, [roomId, type], [])
+  getCreepTypeBodyPartCount(roomId: string, type: WorkerType, part: BodyPartConstant) {
+    if (!_.has(this.creepsByType, [roomId, type])) {
+      _.set(this.creepsByType, [roomId, type], []);
     }
     const creepList: string[] = _.get(this.creepsByType, [roomId, type]);
     return creepList.reduce((a, cName) => {
       const creep = Game.creeps[cName];
-      if(!creep) return a;
+      if (!creep) return a;
+      return a + creep.getActiveBodyparts(part);
+    }, 0);
+  }
+
+  getCreepTypeCount(roomId: string, type: WorkerType) {
+    if (!_.has(this.creepsByType, [roomId, type])) {
+      _.set(this.creepsByType, [roomId, type], []);
+    }
+    const creepList: string[] = _.get(this.creepsByType, [roomId, type]);
+    return creepList.reduce((a, cName) => {
+      const creep = Game.creeps[cName];
+      if (!creep) return a;
       return a + 1;
-    }, 0)
+    }, 0);
   }
 
-  deregisterCreep(name: string, roomId: string, type: WorkerType){
-    if(!_.has(this.creepsByType, [roomId, type])){
-      _.set(this.creepsByType, [roomId, type], [])
+  deregisterCreep(name: string, roomId: string, type: WorkerType) {
+    if (!_.has(this.creepsByType, [roomId, type])) {
+      _.set(this.creepsByType, [roomId, type], []);
     }
     const creepList: string[] = _.get(this.creepsByType, [roomId, type]);
-    _.remove(creepList, c => c === name)
+    _.remove(creepList, c => c === name);
   }
 
   runCreep(name: string) {
@@ -97,7 +100,7 @@ export default class WorkerCreepService extends BaseCreepService {
         if (!creep) {
           // dead
           this.deregisterCreep(name, roomId, type as WorkerType);
-          this.analyzeSources(roomId)
+          this.analyzeSources(roomId);
           return;
         }
         if (type === WorkerType.MINER) {
@@ -129,48 +132,45 @@ export default class WorkerCreepService extends BaseCreepService {
     this.bot.enqueueProcess({
       priority: Priority.LOW,
       func: () => {
-        const id = `analyze.construction.${roomId}`
+        const id = `analyze.construction.${roomId}`;
         const room = Game.rooms[roomId];
-        if(!room) return;
-        if(!room.memory.bp) return {scheduleIn:{id, t: 5}}
-        if(room.memory.bp.result === undefined) {
-          return {scheduleIn:{id, t: 5}}
-        }
-        else if(!room.memory.bp.result) {
+        if (!room) return;
+        if (!room.memory.bp) return { scheduleIn: { id, t: 5 } };
+        if (room.memory.bp.result === undefined) {
+          return { scheduleIn: { id, t: 5 } };
+        } else if (!room.memory.bp.result) {
           return;
         }
         // start building only in RCL 3
-        if((room.controller?.level || 0) < 3) return {scheduleIn:{id, t: 10}}
-        if(room.find(FIND_MY_CONSTRUCTION_SITES).length > 0) return {scheduleIn:{id, t: 5}}
+        if ((room.controller?.level || 0) < 3) return { scheduleIn: { id, t: 10 } };
+        if (room.find(FIND_MY_CONSTRUCTION_SITES).length > 0) return { scheduleIn: { id, t: 5 } };
         const buildings = room.memory.bp?.buildings;
-        if(!buildings) return;
-        for(let i in buildings){
+        if (!buildings) return;
+        for (let i in buildings) {
           const b: Building = buildings[i];
           const pos = room.getPositionAt(...b.p);
-          if(!pos) continue;
+          if (!pos) continue;
           // destroy obstacle
-          if(b.b in OBSTACLE_OBJECT_TYPES){
+          if (b.b in OBSTACLE_OBJECT_TYPES) {
             const obstacle = pos.lookFor(LOOK_STRUCTURES).find(s => s.structureType in OBSTACLE_OBJECT_TYPES);
-            if(obstacle){
+            if (obstacle) {
               obstacle.destroy();
-              continue
+              continue;
             }
           }
           const res = pos.createConstructionSite(b.b);
-          if(res === OK){
+          if (res === OK) {
             break;
-          }
-          else if(res === ERR_RCL_NOT_ENOUGH){
+          } else if (res === ERR_RCL_NOT_ENOUGH) {
             continue;
-          }
-          else{
-            console.log(`Error placing construction site ${res}`)
+          } else {
+            console.log(`Error placing construction site ${res}`);
           }
         }
 
-        return {scheduleIn:{id, t: 5}}
+        return { scheduleIn: { id, t: 5 } };
       }
-    })
+    });
   }
 
   analyzeEnergyNeeds(roomId: string) {
@@ -178,12 +178,11 @@ export default class WorkerCreepService extends BaseCreepService {
     if (!room) return;
     room.find(FIND_MY_STRUCTURES).forEach(s => {
       // @ts-ignore
-      if(s.store?.getCapacity(RESOURCE_ENERGY)){
+      if (s.store?.getCapacity(RESOURCE_ENERGY)) {
         // @ts-ignore
-        this.logisticsIndex.addSink(new TransferSink(s.id, RESOURCE_ENERGY))
+        this.logisticsIndex.addSink(new TransferSink(s.id, RESOURCE_ENERGY));
       }
-
-    })
+    });
   }
 
   /*
@@ -223,54 +222,54 @@ export default class WorkerCreepService extends BaseCreepService {
     const minerCount = this.getCreepTypeCount(roomId, WorkerType.MINER);
     const builderCount = this.getCreepTypeCount(roomId, WorkerType.BUILDER);
 
-    if(haulerBodyCount < minerBodyCount*3){
-      let parts: BodyPartConstant[]
-      if(haulerBodyCount === 0){
-        parts = SMALL_HAULER
-      }else{
-        parts = MEDIUM_HAULER
+    if (haulerBodyCount < minerBodyCount * 3) {
+      let parts: BodyPartConstant[];
+      if (haulerBodyCount === 0) {
+        parts = SMALL_HAULER;
+      } else {
+        parts = MEDIUM_HAULER;
       }
       this.bot.enqueueSpawn(roomId, this.generateWorkerCreepName(WorkerType.HAULER, roomId), parts, n => {
         this.runCreep(n);
         this.enqueueAnalyzeRoomSpawns(roomId);
       });
-    }
-    else if(
-      minerBodyCount > 1 && haulerBodyCount > 1 && controllerCount < 1
-    ){
+    } else if (minerBodyCount > 1 && haulerBodyCount > 1 && controllerCount < 1) {
       this.bot.enqueueSpawn(
-        roomId, this.generateWorkerCreepName(WorkerType.CONTROLLER, roomId),
+        roomId,
+        this.generateWorkerCreepName(WorkerType.CONTROLLER, roomId),
         [MOVE, CARRY, WORK],
-          n => {
-            this.runCreep(n);
-            this.enqueueAnalyzeRoomSpawns(roomId);
-          }
+        n => {
+          this.runCreep(n);
+          this.enqueueAnalyzeRoomSpawns(roomId);
+        }
       );
-    }
-    else if(this.miningIndex.slotCount() > minerCount){
+    } else if (this.miningIndex.slotCount() > minerCount) {
       const parts = [MOVE, CARRY];
-      const initialCost: number = parts.reduce((a,p) => a + BODYPART_COST[p], 0);
-      const workCount = Math.floor((room.energyCapacityAvailable - initialCost) / (BODYPART_COST[WORK]+BODYPART_COST[CARRY]));
+      const initialCost: number = parts.reduce((a, p) => a + BODYPART_COST[p], 0);
+      const workCount = Math.floor(
+        (room.energyCapacityAvailable - initialCost) / (BODYPART_COST[WORK] + BODYPART_COST[CARRY])
+      );
       this.bot.enqueueSpawn(
         roomId,
         this.generateWorkerCreepName(WorkerType.MINER, roomId),
         parts.concat(Array(workCount).fill(WORK), Array(workCount).fill(CARRY)),
-          n => {
-        this.runCreep(n);
-        this.enqueueAnalyzeRoomSpawns(roomId);
-      });
-    }
-    else if(3 > builderCount){
+        n => {
+          this.runCreep(n);
+          this.enqueueAnalyzeRoomSpawns(roomId);
+        }
+      );
+    } else if (3 > builderCount) {
       const parts = [MOVE, CARRY];
-      const initialCost: number = parts.reduce((a,p) => a + BODYPART_COST[p], 0);
+      const initialCost: number = parts.reduce((a, p) => a + BODYPART_COST[p], 0);
       const workCount = Math.floor((room.energyCapacityAvailable - initialCost) / BODYPART_COST[WORK]);
       this.bot.enqueueSpawn(
-        roomId, this.generateWorkerCreepName(WorkerType.BUILDER, roomId),
+        roomId,
+        this.generateWorkerCreepName(WorkerType.BUILDER, roomId),
         parts.concat(Array(workCount).fill(WORK)),
-          n => {
-            this.runCreep(n);
-            this.enqueueAnalyzeRoomSpawns(roomId);
-          }
+        n => {
+          this.runCreep(n);
+          this.enqueueAnalyzeRoomSpawns(roomId);
+        }
       );
     }
   }
@@ -282,19 +281,19 @@ export default class WorkerCreepService extends BaseCreepService {
   runMiner(creep: Creep) {
     const [prefix, type, roomId, idx] = this.splitCreepName(creep.name);
     if (!this.miningIndex.isCreepAssigned(creep)) {
-      const available = this.miningIndex.findAvailableSlot()
+      const available = this.miningIndex.findAvailableSlot();
       if (available) {
         this.miningIndex.assignCreep(available, creep);
-        this.logisticsIndex.addSource(new LSourceMiner(creep.id, RESOURCE_ENERGY))
+        this.logisticsIndex.addSource(new LSourceMiner(creep.id, RESOURCE_ENERGY));
       }
     }
-    const slot = this.miningIndex.getCreepSlot(creep)
-    if(!slot) return;
+    const slot = this.miningIndex.getCreepSlot(creep);
+    if (!slot) return;
     if (slot.pos && creep.pos.getRangeTo(slot.pos) > 0) {
       creep.travelTo(slot.pos);
     } else {
-      const obj = Game.getObjectById(slot.source.id)
-      if (obj) creep.harvest(obj)
+      const obj = Game.getObjectById(slot.source.id);
+      if (obj) creep.harvest(obj);
     }
   }
 
@@ -302,102 +301,119 @@ export default class WorkerCreepService extends BaseCreepService {
     const [prefix, type, roomId, idx] = this.splitCreepName(creep.name);
     // allocate creep
     if (!this.logisticsIndex.isCreepAllocated(creep)) {
-
       // allocated sink + currently carrying
-      const sources = this.logisticsIndex.getAvailableSource(roomId, RESOURCE_ENERGY, creep.store.getFreeCapacity(RESOURCE_ENERGY));
-      if(sources.length > 0){
+      const sources = this.logisticsIndex.getAvailableSource(
+        roomId,
+        RESOURCE_ENERGY,
+        creep.store.getFreeCapacity(RESOURCE_ENERGY)
+      );
+      if (sources.length > 0) {
         const s = sources[0];
-        this.logisticsIndex.allocateSource(creep, s, Math.min(creep.store.getFreeCapacity(RESOURCE_ENERGY), s.getFreeValue()))
+        this.logisticsIndex.allocateSource(
+          creep,
+          s,
+          Math.min(creep.store.getFreeCapacity(RESOURCE_ENERGY), s.getFreeValue())
+        );
       }
 
-      const sinks = this.logisticsIndex.getAvailableSink(roomId, RESOURCE_ENERGY, creep.store.getCapacity(RESOURCE_ENERGY));
+      const sinks = this.logisticsIndex.getAvailableSink(
+        roomId,
+        RESOURCE_ENERGY,
+        creep.store.getCapacity(RESOURCE_ENERGY)
+      );
       sinks.forEach(s => {
-        this.logisticsIndex.allocateSink(creep, s, s.getRemainingValue())
-      })
+        this.logisticsIndex.allocateSink(creep, s, s.getRemainingValue());
+      });
     }
 
     // do the work
     const alloc = this.logisticsIndex.getCreepAllocation(creep);
     // get sources
-    if(alloc.sources.length > 0){
+    if (alloc.sources.length > 0) {
       const s = alloc.sources[0];
       const a = s.getAllocation(creep);
 
-      if(creep.store.getFreeCapacity(s.resource) === 0){
+      if (creep.store.getFreeCapacity(s.resource) === 0) {
         this.logisticsIndex.deallocateSource(creep, s);
         return;
       }
 
-      if(a){
+      if (a) {
         const res = s.pickup(creep, a.value);
         const target = Game.getObjectById(s.id);
-        if(!target){
+        if (!target) {
           this.logisticsIndex.deallocateSource(creep, s);
-        }else if(creep.pos.getRangeTo(target.pos) > 1){
+        } else if (creep.pos.getRangeTo(target.pos) > 1) {
           creep.travelTo(target);
-        }else{
+        } else {
           // re-allocate to account for constantly growing miner
           this.logisticsIndex.deallocateSource(creep, s);
-          this.logisticsIndex.allocateSource(creep, s, Math.min(creep.store.getFreeCapacity(s.resource),s.getFreeValue()))
+          this.logisticsIndex.allocateSource(
+            creep,
+            s,
+            Math.min(creep.store.getFreeCapacity(s.resource), s.getFreeValue())
+          );
           s.pickup(creep, a.value);
-          this.logisticsIndex.deallocateSource(creep, s)
+          this.logisticsIndex.deallocateSource(creep, s);
         }
       }
     }
     // get sinks
-    else if(alloc.sinks.length > 0){
+    else if (alloc.sinks.length > 0) {
       const s = alloc.sinks[0];
       const a = s.getAllocation(creep);
 
-      if(creep.store.getUsedCapacity(s.resource) === 0){
+      if (creep.store.getUsedCapacity(s.resource) === 0) {
         this.logisticsIndex.deallocateSink(creep, s);
         return;
       }
 
-      if(a){
+      if (a) {
         const res = s.deliver(creep, a.value);
-        const target = Game.getObjectById(s.id)
-        if(target && res === ERR_NOT_IN_RANGE){
-          creep.travelTo(target)
-        }else{
-          this.logisticsIndex.deallocateSink(creep, s)
+        const target = Game.getObjectById(s.id);
+        if (target && res === ERR_NOT_IN_RANGE) {
+          creep.travelTo(target);
+        } else {
+          this.logisticsIndex.deallocateSink(creep, s);
         }
       }
     }
   }
 
-  runController(creep: Creep){
+  runController(creep: Creep) {
     const [prefix, type, roomId, idx] = this.splitCreepName(creep.name);
     this.logisticsIndex.addSink(new TransferSink(creep.id, RESOURCE_ENERGY));
     const room = Game.rooms[roomId];
-    if(!room) return
-    if(!room.controller) return
-    if(creep.pos.getRangeTo(room.controller.pos) > 1){
-      creep.travelTo(room.controller.pos)
-    }else{
-      creep.upgradeController(room.controller)
+    if (!room) return;
+    if (!room.controller) return;
+    if (creep.pos.getRangeTo(room.controller.pos) > 1) {
+      creep.travelTo(room.controller.pos);
+    } else {
+      creep.upgradeController(room.controller);
     }
-
   }
 
-  runBuilder(creep: Creep){
+  runBuilder(creep: Creep) {
     const [prefix, type, roomId, idx] = this.splitCreepName(creep.name);
     this.logisticsIndex.addSink(new TransferSink(creep.id, RESOURCE_ENERGY));
     const room = Game.rooms[roomId];
-    if(!room) return
+    if (!room) return;
     const sites = room.find(FIND_MY_CONSTRUCTION_SITES);
-    if(sites.length === 0){
+    if (sites.length === 0) {
       this.runController(creep);
       return;
     }
-    if(creep.pos.getRangeTo(sites[0].pos) > 1){
-      creep.travelTo(sites[0].pos)
-    }else{
-      const totalBuildPower = Math.min(BUILD_POWER * creep.getActiveBodyparts(WORK), creep.store.getUsedCapacity(RESOURCE_ENERGY))
+    if (creep.pos.getRangeTo(sites[0].pos) > 1) {
+      creep.travelTo(sites[0].pos);
+    } else {
+      const totalBuildPower = Math.min(
+        BUILD_POWER * creep.getActiveBodyparts(WORK),
+        creep.store.getUsedCapacity(RESOURCE_ENERGY)
+      );
       const remaining = sites[0].progressTotal - sites[0].progress;
       // expect new building next tick
-      if(remaining <= totalBuildPower){
-        const pos = sites[0].pos
+      if (remaining <= totalBuildPower) {
+        const pos = sites[0].pos;
         this.bot.enqueueProcessIn(
           `new.bldg.${roomId}.${pos.x}.${pos.y}`,
           {
@@ -405,17 +421,17 @@ export default class WorkerCreepService extends BaseCreepService {
             func: () => {
               pos.lookFor(LOOK_STRUCTURES).forEach(struct => {
                 // @ts-ignore
-                if(!struct.my) return;
+                if (!struct.my) return;
                 // @ts-ignore
-                if(struct.store?.getCapacity(RESOURCE_ENERGY)){
+                if (struct.store?.getCapacity(RESOURCE_ENERGY)) {
                   // @ts-ignore
-                  this.logisticsIndex.addSink(new TransferSink<RESOURCE_ENERGY>(struct.id))
+                  this.logisticsIndex.addSink(new TransferSink<RESOURCE_ENERGY>(struct.id));
                 }
-              })
+              });
             }
           },
           1
-        )
+        );
       }
       creep.build(sites[0]);
     }
