@@ -259,6 +259,7 @@ export default class WorkerCreepService extends BaseCreepService {
         }
       );
     } else if (3 > builderCount) {
+      console.log("builderCount", builderCount)
       const parts = [MOVE, CARRY];
       const initialCost: number = parts.reduce((a, p) => a + BODYPART_COST[p], 0);
       const workCount = Math.floor((room.energyCapacityAvailable - initialCost) / BODYPART_COST[WORK]);
@@ -386,6 +387,7 @@ export default class WorkerCreepService extends BaseCreepService {
     const room = Game.rooms[roomId];
     if (!room) return;
     if (!room.controller) return;
+    this.shareEnergyToNeighbors(creep);
     if (creep.pos.getRangeTo(room.controller.pos) > 1) {
       creep.travelTo(room.controller.pos);
     } else {
@@ -403,6 +405,7 @@ export default class WorkerCreepService extends BaseCreepService {
       this.runController(creep);
       return;
     }
+    this.shareEnergyToNeighbors(creep);
     if (creep.pos.getRangeTo(sites[0].pos) > 1) {
       creep.travelTo(sites[0].pos);
     } else {
@@ -443,5 +446,25 @@ export default class WorkerCreepService extends BaseCreepService {
 
   private generateWorkerCreepName(type: WorkerType, roomId: string) {
     return this.generateCreepName([type, roomId]);
+  }
+  private shareEnergyToNeighbors(creep: Creep){
+    const neighbors = creep.pos.findInRange(
+      FIND_MY_CREEPS, 1, {
+        filter: c => {
+          return c.name.substring(0, 1) === creep.name.substring(0, 1) &&
+            c.getActiveBodyparts(CARRY) > 0 &&
+            c.store.getUsedCapacity(RESOURCE_ENERGY) < creep.store.getUsedCapacity(RESOURCE_ENERGY)
+        }
+      }
+    )
+    console.log("neighbors", neighbors.length);
+    if(neighbors.length === 0) return
+    neighbors.sort((a, b) => {
+      return a.store.getUsedCapacity(RESOURCE_ENERGY) - b.store.getUsedCapacity(RESOURCE_ENERGY)
+    })
+    const target = neighbors[0];
+    const toGive = Math.floor((creep.store.getUsedCapacity(RESOURCE_ENERGY) - target.store.getUsedCapacity(RESOURCE_ENERGY)) / 2);
+    if(toGive <= 0) return
+    creep.transfer(target, RESOURCE_ENERGY, toGive)
   }
 }
