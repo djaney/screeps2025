@@ -5,6 +5,7 @@ import { TransferSink } from "../core/logistics/sinks";
 import { LSourceMiner } from "../core/logistics/sources";
 import { LogisticIndex } from "../core/logistics/LogisticIndex";
 import { Building } from "../services/BasePlanningService";
+import TerrainAlgo from "../utils/TerrainAlgo";
 
 enum WorkerType {
   MINER = "m",
@@ -15,16 +16,14 @@ enum WorkerType {
 
 type CreepsByType = {
   [roomId in string]?: {
-    [type in WorkerType]?: string[]
-  }
-}
+    [type in WorkerType]?: string[];
+  };
+};
 
 const SMALL_MINER = [WORK, MOVE, CARRY];
 const SMALL_HAULER = [MOVE, CARRY];
 const MEDIUM_HAULER = [MOVE, MOVE, CARRY, CARRY];
 const SMALL_BUILDER = [WORK, MOVE, CARRY];
-
-
 
 export default class WorkerCreepService extends BaseCreepService {
   prefix = "w";
@@ -162,7 +161,6 @@ export default class WorkerCreepService extends BaseCreepService {
           if (res === OK) {
             break;
           } else if (res === ERR_RCL_NOT_ENOUGH) {
-            continue;
           } else {
             console.log(`Error placing construction site ${res}`);
           }
@@ -387,10 +385,32 @@ export default class WorkerCreepService extends BaseCreepService {
     if (!room) return;
     if (!room.controller) return;
     this.shareEnergyToNeighbors(creep);
-    creep.upgradeController(room.controller);
-    if (creep.pos.getRangeTo(room.controller.pos) > 1) {
-      creep.travelTo(room.controller.pos);
+
+    let dest;
+    // try to position inside upgrade stamp
+    if (room.memory.bp?.upgrade) {
+      const slot = TerrainAlgo.ring(room.memory.bp.upgrade.x, room.memory.bp.upgrade.y, 1).find(xy => {
+        const pos = room.getPositionAt(...xy);
+        if (!pos) return false;
+        // look for obstructions
+        return pos.lookFor(LOOK_CREEPS).filter(c => {
+          if(c.id === creep.id) return false; // if self
+          if (!c.my) return false; // if not mine
+          if (!c.name.startsWith(this.prefix)) return false; // if not worker
+          if (!c.memory._trav.state) return false; // if moving
+          const [cx, cy, stuckCount, cpu, dx, dy, nm] = c.memory._trav.state;
+          return dx === c.pos.x || dy === c.pos.y;
+        }).length === 0
+      });
+      if(slot) dest = room.getPositionAt(slot[0], slot[1]);
+
     }
+    // if no stamp, just anywhere
+    if (!dest && creep.pos.getRangeTo(room.controller.pos) > 1) {
+      dest = room.controller.pos;
+    }
+    if(dest) creep.travelTo(dest);
+    creep.upgradeController(room.controller);
   }
 
   runBuilder(creep: Creep) {
@@ -446,23 +466,26 @@ export default class WorkerCreepService extends BaseCreepService {
   private generateWorkerCreepName(type: WorkerType, roomId: string) {
     return this.generateCreepName([type, roomId]);
   }
-  private shareEnergyToNeighbors(creep: Creep){
-    const neighbors = creep.pos.findInRange(
-      FIND_MY_CREEPS, 1, {
-        filter: c => {
-          return c.name.substring(0, 1) === creep.name.substring(0, 1) &&
-            c.getActiveBodyparts(CARRY) > 0 &&
-            c.store.getUsedCapacity(RESOURCE_ENERGY) < creep.store.getUsedCapacity(RESOURCE_ENERGY)
-        }
+
+  private shareEnergyToNeighbors(creep: Creep) {
+    const neighbors = creep.pos.findInRange(FIND_MY_CREEPS, 1, {
+      filter: c => {
+        return (
+          c.name.substring(0, 1) === creep.name.substring(0, 1) &&
+          c.getActiveBodyparts(CARRY) > 0 &&
+          c.store.getUsedCapacity(RESOURCE_ENERGY) < creep.store.getUsedCapacity(RESOURCE_ENERGY)
+        );
       }
-    )
-    if(neighbors.length === 0) return
+    });
+    if (neighbors.length === 0) return;
     neighbors.sort((a, b) => {
-      return a.store.getUsedCapacity(RESOURCE_ENERGY) - b.store.getUsedCapacity(RESOURCE_ENERGY)
-    })
+      return a.store.getUsedCapacity(RESOURCE_ENERGY) - b.store.getUsedCapacity(RESOURCE_ENERGY);
+    });
     const target = neighbors[0];
-    const toGive = Math.floor((creep.store.getUsedCapacity(RESOURCE_ENERGY) - target.store.getUsedCapacity(RESOURCE_ENERGY)) / 2);
-    if(toGive <= 0) return
-    creep.transfer(target, RESOURCE_ENERGY, toGive)
+    const toGive = Math.floor(
+      (creep.store.getUsedCapacity(RESOURCE_ENERGY) - target.store.getUsedCapacity(RESOURCE_ENERGY)) / 2
+    );
+    if (toGive <= 0) return;
+    creep.transfer(target, RESOURCE_ENERGY, toGive);
   }
 }
