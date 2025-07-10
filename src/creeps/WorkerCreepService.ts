@@ -1,6 +1,6 @@
 import BaseCreepService from "../core/BaseCreepService";
 import { Priority } from "../core/process-manager/types";
-import SlotIndex from "../core/slot/SlotIndex";
+import { MiningIndex } from "../core/mining/mining";
 import { TransferSink } from "../core/logistics/sinks";
 import { LSourceMiner } from "../core/logistics/sources";
 import { LogisticIndex } from "../core/logistics/LogisticIndex";
@@ -29,7 +29,7 @@ const SMALL_BUILDER = [WORK, MOVE, CARRY];
 export default class WorkerCreepService extends BaseCreepService {
   prefix = "w";
 
-  miningIndex: SlotIndex = new SlotIndex();
+  miningIndex: MiningIndex = new MiningIndex();
   logisticsIndex: LogisticIndex = new LogisticIndex();
   creepsByType: CreepsByType = {};
 
