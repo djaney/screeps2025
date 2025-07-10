@@ -7,6 +7,7 @@ import {
 import Bot from "../Bot";
 import { Priority } from "../core/process-manager/types";
 import TerrainAlgo from "../utils/TerrainAlgo";
+import { ErrorMapper } from "../utils/ErrorMapper";
 
 type XY = [number, number];
 
@@ -101,7 +102,12 @@ export class BasePlanningService implements ServiceInterface {
               return;
             }
           } catch (e) {
-            room.memory.bp = { err: String(e), result: false };
+            if(e instanceof Error){
+              room.memory.bp = { err: _.escape(ErrorMapper.sourceMappedStackTrace(e)), result: false };
+            }else{
+              room.memory.bp = { err: String(e), result: false };
+            }
+
             return;
           }
 
@@ -307,7 +313,7 @@ export class BasePlanningService implements ServiceInterface {
           if (x < 1 || x > 49) return;
           if (y < 1 || y > 49) return;
           if (visited.get(x, y) > 0) return;
-          if (costMat.get(x, y) > 10) return;
+          // if (costMat.get(x, y) > 10) return;
           tmpOpen.push([x, y]);
           visited.set(x, y, 1);
         });
