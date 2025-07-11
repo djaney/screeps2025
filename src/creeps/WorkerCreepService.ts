@@ -278,10 +278,16 @@ export default class WorkerCreepService extends BaseCreepService {
     if (!slot) return;
     if (slot.pos && creep.pos.getRangeTo(slot.pos) > 0) {
       creep.travelTo(slot.pos);
-    } else {
-      const obj = Game.getObjectById(slot.source.id);
-      if (obj) creep.harvest(obj);
     }
+
+    if(creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0){
+      const dropped = creep.pos.lookFor(LOOK_RESOURCES)
+      if(dropped.length > 0) creep.pickup(dropped[0])
+    }
+
+
+    const obj = Game.getObjectById(slot.source.id);
+    if (obj) creep.harvest(obj);
   }
 
   runHauler(creep: Creep) {
