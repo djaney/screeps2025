@@ -43,7 +43,7 @@ export default class WorkerCreepService extends BaseCreepService {
     this.analyzeSources(roomId);
     this.analyzeConstruction(roomId);
     this.enqueueAnalyzeRoomSpawns(roomId);
-    this.analyzeEnergyNeeds(roomId);
+    this.enqueueAnalyzeEnergyNeeds(roomId)
   }
 
   registerCreep(name: string, roomId: string, type: WorkerType) {
@@ -146,6 +146,18 @@ export default class WorkerCreepService extends BaseCreepService {
       }
     });
   }
+
+    enqueueAnalyzeEnergyNeeds(roomId: string){
+      this.bot.enqueueProcess({
+        priority: Priority.NORMAL,
+        func: () => {
+          this.analyzeEnergyNeeds(roomId);
+          return {scheduleIn: {id: `analyzeEnergyNeeds.${roomId}`, t: 6}}
+        }
+      })
+
+    }
+
 
   analyzeEnergyNeeds(roomId: string) {
     const room = Game.rooms[roomId];
@@ -322,7 +334,7 @@ export default class WorkerCreepService extends BaseCreepService {
     // do the work
     const alloc = this.logisticsIndex.getCreepAllocation(creep);
     // get sources
-    if (alloc.sources.length > 0) {
+    if (alloc && alloc.sources.length > 0) {
       const s = alloc.sources[0];
       const a = s.getAllocation(creep);
 
@@ -332,7 +344,7 @@ export default class WorkerCreepService extends BaseCreepService {
       }
 
       if (a) {
-        const res = s.pickup(creep, a.value);
+        s.pickup(creep, a.value);
         const target = Game.getObjectById(s.id);
         if (!target) {
           this.logisticsIndex.deallocateSource(creep, s);
@@ -352,7 +364,7 @@ export default class WorkerCreepService extends BaseCreepService {
       }
     }
     // get sinks
-    else if (alloc.sinks.length > 0) {
+    else if (alloc && alloc.sinks.length > 0) {
       const s = alloc.sinks[0];
       const a = s.getAllocation(creep);
 
