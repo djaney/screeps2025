@@ -256,6 +256,8 @@ export default class WorkerCreepService extends BaseCreepService {
           this.enqueueAnalyzeRoomSpawns(roomId);
         }
       );
+    }else{
+      this.enqueueAnalyzeRoomSpawns(roomId, 5);
     }
   }
 
