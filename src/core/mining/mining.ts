@@ -18,7 +18,19 @@ export class EnergySource {
     const source = Game.getObjectById(id)
     if(!source) throw Error(`EnergySource constructor error: source ${id} does not exist`)
     TerrainAlgo.ring(source.pos.x, source.pos.y, 1)
-        .filter(xy => source.room.getTerrain().get(...xy) !== TERRAIN_MASK_WALL)
+        .filter((xy, key, slots) => {
+          // exclude walls
+          if(source.room.getTerrain().get(...xy) === TERRAIN_MASK_WALL) return false;
+          // check if passable
+          return !!TerrainAlgo.ring(xy[0], xy[1], 1)
+            // find passage
+            .find(xy2 => {
+              const isSlot = !!_.find(slots, s => s[0] === xy2[0] && s[1] === xy2[1]);
+              const isWall = source.room.getTerrain().get(...xy2) === TERRAIN_MASK_WALL
+              return !isSlot && !isWall
+            })
+
+        })
         .forEach(xy => {
           const slotPos = new RoomPosition(xy[0], xy[1], source.room.name);
           if(!this.slots.find(s => s.pos.isEqualTo(slotPos))){
