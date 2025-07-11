@@ -70,6 +70,10 @@ export class MiningIndex {
     delete this.rooms[roomId]
   }
 
+  getRoomSourceCount(roomId: string): number {
+    return _.size(this.rooms[roomId] || []) || 0
+  }
+
   assignCreep(slot: MinerSlot, creep: Creep){
     slot.take(creep.id)
     this.creeps[creep.id] = slot
