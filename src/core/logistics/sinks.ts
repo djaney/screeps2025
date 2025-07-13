@@ -17,7 +17,7 @@ export class TransferSink<T extends TransferEntities> extends BaseNode implement
       }
     }
     // @ts-ignore
-    const storedValue = obj.store[this.resource] || 0;
+    const storedValue = obj.store.getFreeCapacity(this.resource) || 0;
     const allocatedValue = Object.values(this.allocation).reduce((a, alloc) => {
       return a + (alloc?.value || 0);
     }, 0);

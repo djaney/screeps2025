@@ -181,15 +181,17 @@ export default class WorkerCreepService extends BaseCreepService {
         priority: Priority.NORMAL,
         func: () => {
           this.analyzeRoomSpawns(roomId);
+          return {scheduleIn: {id: `${this.prefix}.enqueueAnalyzeRoomSpawns.${roomId}`, t: 5}}
         }
       });
     } else {
       this.bot.enqueueProcessIn(
-        `${this.prefix}.an.${roomId}`,
+        `${this.prefix}.enqueueAnalyzeRoomSpawns.${roomId}`,
         {
           priority: Priority.NORMAL,
           func: () => {
             this.analyzeRoomSpawns(roomId);
+            return {scheduleIn: {id: `${this.prefix}.enqueueAnalyzeRoomSpawns.${roomId}`, t: 5}}
           }
         },
         10
@@ -201,6 +203,12 @@ export default class WorkerCreepService extends BaseCreepService {
     const room = Game.rooms[roomId];
     if (!room) return;
     if (!room.energyAvailable) return;
+
+    const currentSpawnQueueCount = this.bot.countSpawnQueue(roomId);
+    if(currentSpawnQueueCount > 0) return;
+
+
+
     // if there is a spawn and a resource
     const controllerCreeps = this.getCreepTypeSpawnedCount(roomId, WorkerType.CONTROLLER);
     const minerCreeps = this.getCreepTypeSpawnedCount(roomId, WorkerType.MINER);
@@ -209,6 +217,12 @@ export default class WorkerCreepService extends BaseCreepService {
 
     const haulerBodyCount = this.getCreepTypeBodyPartCount(haulerCreeps, CARRY);
     const minerBodyCount = this.getCreepTypeBodyPartCount(minerCreeps, WORK);
+
+    // clear queue if economy is stuck
+    if(haulerBodyCount === 0 || minerBodyCount === 0) {
+      this.bot.clearSpawnQueue(roomId)
+    }
+
 
 
     // hauler
@@ -220,8 +234,11 @@ export default class WorkerCreepService extends BaseCreepService {
         parts = this.generateCreepParts(room, [MOVE, CARRY], [MOVE, CARRY]);
       }
       this.bot.enqueueSpawn(roomId, this.generateWorkerCreepName(WorkerType.HAULER, roomId), parts, n => {
-        this.runCreep(n);
-        this.enqueueAnalyzeRoomSpawns(roomId);
+        try{
+            this.runCreep(n);
+          }finally {
+            this.enqueueAnalyzeRoomSpawns(roomId);
+          }
       });
     }
     // controller
@@ -232,8 +249,11 @@ export default class WorkerCreepService extends BaseCreepService {
         this.generateWorkerCreepName(WorkerType.CONTROLLER, roomId),
         parts,
         n => {
-          this.runCreep(n);
-          this.enqueueAnalyzeRoomSpawns(roomId);
+          try{
+            this.runCreep(n);
+          }finally {
+            this.enqueueAnalyzeRoomSpawns(roomId);
+          }
         }
       );
     }
@@ -251,8 +271,11 @@ export default class WorkerCreepService extends BaseCreepService {
         this.generateWorkerCreepName(WorkerType.MINER, roomId),
         parts,
         n => {
-          this.runCreep(n);
-          this.enqueueAnalyzeRoomSpawns(roomId);
+          try{
+            this.runCreep(n);
+          }finally {
+            this.enqueueAnalyzeRoomSpawns(roomId);
+          }
         }
       );
     }
@@ -264,12 +287,13 @@ export default class WorkerCreepService extends BaseCreepService {
         this.generateWorkerCreepName(WorkerType.BUILDER, roomId),
         parts,
         n => {
-          this.runCreep(n);
-          this.enqueueAnalyzeRoomSpawns(roomId);
+          try{
+            this.runCreep(n);
+          }finally {
+            this.enqueueAnalyzeRoomSpawns(roomId);
+          }
         }
       );
-    }else{
-      this.enqueueAnalyzeRoomSpawns(roomId, 5);
     }
   }
 

@@ -66,6 +66,14 @@ export default class Bot {
     this.spawn.enqueueSpawn(roomId, name, body, callback);
   }
 
+  clearSpawnQueue(roomId: string){
+    return this.spawn.clearSpawnQueue(roomId);
+  }
+
+  countSpawnQueue(roomId: string): number{
+    return this.spawn.countSpawnQueue(roomId);
+  }
+
   enqueueProcess(unit: ProcessUnit){
     this.process.enqueue(unit);
   }

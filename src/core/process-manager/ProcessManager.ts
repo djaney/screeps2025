@@ -68,12 +68,27 @@ export default class ProcessManager implements ServiceInterface {
       this.queue.splice(index, 1);
     }
     // scheduling
+    this.printSchedule('W5S7')
     for (let i in this.schedule) {
       this.schedule[i].t -= 1;
       if (this.schedule[i].t <= 0) {
         this.enqueue(this.schedule[i].p);
         delete this.schedule[i];
       }
+    }
+
+  }
+
+  printSchedule(roomId: string){
+    // print schedule
+    const room = Game.rooms[roomId];
+    if(room){
+      let count = 0;
+      _.forEach(this.schedule, (s, id) => {
+        if(id) room.visual.text(`${s.t} - ${id}`, 0, count++, {
+          align: "left"
+        })
+      })
     }
   }
 }

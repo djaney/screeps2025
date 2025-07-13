@@ -32,6 +32,16 @@ export default class SpawnManager implements ServiceInterface {
     this.doSpawn(roomId);
   }
 
+  countSpawnQueue(roomId: string): number{
+    if(!this.queue[roomId]) return 0
+    return this.queue[roomId]?.length || 0
+  }
+
+  clearSpawnQueue(roomId: string){
+    if(!this.queue[roomId]) return;
+    this.queue[roomId] = []
+  }
+
   doSpawn(roomId: string) {
     const room = Game.rooms[roomId];
     if (!room) return;

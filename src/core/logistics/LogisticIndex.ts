@@ -95,7 +95,6 @@ export class LogisticIndex {
     if(!roomSinks) return []
     let fulfilled = 0;
     const out: LSinkInterface<LSinkConstant>[] = []
-
     for (let i in roomSinks){
       // cleanup
       if(!Game.getObjectById(roomSinks[i].id)){
@@ -106,15 +105,16 @@ export class LogisticIndex {
         })
         delete roomSinks[i]
       }
-
-      if(roomSinks[i] && fulfilled < amount && roomSinks[i].resource === resource){
+      // @ts-ignore
+      const sinkRemaining = roomSinks[i].getRemainingValue();
+      if(roomSinks[i] && sinkRemaining > 0 && fulfilled < amount && roomSinks[i].resource === resource){
         fulfilled += roomSinks[i].getRemainingValue();
         out.push(roomSinks[i])
       }
     }
     out.sort((a, b) => {
       return a.lastTick - b.lastTick;
-    })
+    });
     return out;
   }
 
