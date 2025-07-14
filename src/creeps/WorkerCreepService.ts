@@ -43,7 +43,7 @@ export default class WorkerCreepService extends BaseCreepService {
     this.analyzeSources(roomId);
     this.analyzeConstruction(roomId);
     this.enqueueAnalyzeRoomSpawns(roomId);
-    this.enqueueAnalyzeEnergyNeeds(roomId)
+    this.enqueueAnalyzeEnergyNeeds(roomId);
   }
 
   registerCreep(name: string, roomId: string, type: WorkerType) {
@@ -147,17 +147,15 @@ export default class WorkerCreepService extends BaseCreepService {
     });
   }
 
-    enqueueAnalyzeEnergyNeeds(roomId: string){
-      this.bot.enqueueProcess({
-        priority: Priority.NORMAL,
-        func: () => {
-          this.analyzeEnergyNeeds(roomId);
-          return {scheduleIn: {id: `analyzeEnergyNeeds.${roomId}`, t: 6}}
-        }
-      })
-
-    }
-
+  enqueueAnalyzeEnergyNeeds(roomId: string) {
+    this.bot.enqueueProcess({
+      priority: Priority.NORMAL,
+      func: () => {
+        this.analyzeEnergyNeeds(roomId);
+        return { scheduleIn: { id: `analyzeEnergyNeeds.${roomId}`, t: 6 } };
+      }
+    });
+  }
 
   analyzeEnergyNeeds(roomId: string) {
     const room = Game.rooms[roomId];
@@ -181,7 +179,7 @@ export default class WorkerCreepService extends BaseCreepService {
         priority: Priority.NORMAL,
         func: () => {
           this.analyzeRoomSpawns(roomId);
-          return {scheduleIn: {id: `${this.prefix}.enqueueAnalyzeRoomSpawns.${roomId}`, t: 5}}
+          return { scheduleIn: { id: `${this.prefix}.enqueueAnalyzeRoomSpawns.${roomId}`, t: 5 } };
         }
       });
     } else {
@@ -191,7 +189,7 @@ export default class WorkerCreepService extends BaseCreepService {
           priority: Priority.NORMAL,
           func: () => {
             this.analyzeRoomSpawns(roomId);
-            return {scheduleIn: {id: `${this.prefix}.enqueueAnalyzeRoomSpawns.${roomId}`, t: 5}}
+            return { scheduleIn: { id: `${this.prefix}.enqueueAnalyzeRoomSpawns.${roomId}`, t: 5 } };
           }
         },
         10
@@ -205,9 +203,7 @@ export default class WorkerCreepService extends BaseCreepService {
     if (!room.energyAvailable) return;
 
     const currentSpawnQueueCount = this.bot.countSpawnQueue(roomId);
-    if(currentSpawnQueueCount > 0) return;
-
-
+    if (currentSpawnQueueCount > 0) return;
 
     // if there is a spawn and a resource
     const controllerCreeps = this.getCreepTypeSpawnedCount(roomId, WorkerType.CONTROLLER);
@@ -219,11 +215,9 @@ export default class WorkerCreepService extends BaseCreepService {
     const minerBodyCount = this.getCreepTypeBodyPartCount(minerCreeps, WORK);
 
     // clear queue if economy is stuck
-    if(haulerBodyCount === 0 || minerBodyCount === 0) {
-      this.bot.clearSpawnQueue(roomId)
+    if (haulerBodyCount === 0 || minerBodyCount === 0) {
+      this.bot.clearSpawnQueue(roomId);
     }
-
-
 
     // hauler
     if (haulerBodyCount < minerBodyCount) {
@@ -234,66 +228,54 @@ export default class WorkerCreepService extends BaseCreepService {
         parts = this.generateCreepParts(room, [MOVE, CARRY], [MOVE, CARRY]);
       }
       this.bot.enqueueSpawn(roomId, this.generateWorkerCreepName(WorkerType.HAULER, roomId), parts, n => {
-        try{
-            this.runCreep(n);
-          }finally {
-            this.enqueueAnalyzeRoomSpawns(roomId);
-          }
+        try {
+          this.runCreep(n);
+        } finally {
+          this.enqueueAnalyzeRoomSpawns(roomId);
+        }
       });
     }
     // controller
     else if (minerBodyCount > 1 && haulerBodyCount > 1 && controllerCreeps.length < 1) {
       const parts = this.generateCreepParts(room, [MOVE, CARRY], [WORK, CARRY]);
-      this.bot.enqueueSpawn(
-        roomId,
-        this.generateWorkerCreepName(WorkerType.CONTROLLER, roomId),
-        parts,
-        n => {
-          try{
-            this.runCreep(n);
-          }finally {
-            this.enqueueAnalyzeRoomSpawns(roomId);
-          }
+      this.bot.enqueueSpawn(roomId, this.generateWorkerCreepName(WorkerType.CONTROLLER, roomId), parts, n => {
+        try {
+          this.runCreep(n);
+        } finally {
+          this.enqueueAnalyzeRoomSpawns(roomId);
         }
-      );
+      });
     }
     // miner
-    else if (this.miningIndex.slotCount() > minerCreeps.length && minerBodyCount < 5 * this.miningIndex.getRoomSourceCount(roomId)) {
+    else if (
+      this.miningIndex.slotCount() > minerCreeps.length &&
+      minerBodyCount < 5 * this.miningIndex.getRoomSourceCount(roomId)
+    ) {
       let parts: BodyPartConstant[];
-      if(minerCreeps.length === 0){
-        parts = [MOVE, WORK, CARRY]
-      }else{
+      if (minerCreeps.length === 0) {
+        parts = [MOVE, WORK, CARRY];
+      } else {
         parts = this.generateCreepParts(room, [MOVE, CARRY], [WORK, CARRY]);
       }
 
-      this.bot.enqueueSpawn(
-        roomId,
-        this.generateWorkerCreepName(WorkerType.MINER, roomId),
-        parts,
-        n => {
-          try{
-            this.runCreep(n);
-          }finally {
-            this.enqueueAnalyzeRoomSpawns(roomId);
-          }
+      this.bot.enqueueSpawn(roomId, this.generateWorkerCreepName(WorkerType.MINER, roomId), parts, n => {
+        try {
+          this.runCreep(n);
+        } finally {
+          this.enqueueAnalyzeRoomSpawns(roomId);
         }
-      );
+      });
     }
     // builder
     else if (3 > builderCreeps.length) {
       const parts = this.generateCreepParts(room, [MOVE, CARRY], [WORK, CARRY]);
-      this.bot.enqueueSpawn(
-        roomId,
-        this.generateWorkerCreepName(WorkerType.BUILDER, roomId),
-        parts,
-        n => {
-          try{
-            this.runCreep(n);
-          }finally {
-            this.enqueueAnalyzeRoomSpawns(roomId);
-          }
+      this.bot.enqueueSpawn(roomId, this.generateWorkerCreepName(WorkerType.BUILDER, roomId), parts, n => {
+        try {
+          this.runCreep(n);
+        } finally {
+          this.enqueueAnalyzeRoomSpawns(roomId);
         }
-      );
+      });
     }
   }
 
@@ -316,11 +298,32 @@ export default class WorkerCreepService extends BaseCreepService {
       creep.travelTo(slot.pos);
     }
 
-    if(creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0){
-      const dropped = creep.pos.lookFor(LOOK_RESOURCES)
-      if(dropped.length > 0) creep.pickup(dropped[0])
+    // if creep has extra space
+    // pick-up from ground
+    // if nothing to pick-up, try containers
+    if (creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+      const dropped = creep.pos.lookFor(LOOK_RESOURCES);
+      if (dropped.length > 0) {
+        creep.pickup(dropped[0]);
+      } else {
+        const containers: StructureContainer[] = creep.pos.findInRange(FIND_STRUCTURES, 1, {
+          filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getUsedCapacity(RESOURCE_ENERGY) > 0
+        });
+        if (containers.length > 0) {
+          creep.withdraw(containers[0], RESOURCE_ENERGY, HARVEST_POWER * creep.getActiveBodyparts(WORK));
+        }
+      }
     }
 
+    // if creep is full, try to deposit in nearby container
+    else {
+      const containers: StructureContainer[] = creep.pos.findInRange(FIND_STRUCTURES, 1, {
+        filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+      });
+      if (containers.length > 0) {
+        creep.transfer(containers[0], RESOURCE_ENERGY, HARVEST_POWER * creep.getActiveBodyparts(WORK));
+      }
+    }
 
     const obj = Game.getObjectById(slot.source.id);
     if (obj) creep.harvest(obj);
@@ -424,23 +427,24 @@ export default class WorkerCreepService extends BaseCreepService {
         const pos = room.getPositionAt(...xy);
         if (!pos) return false;
         // look for obstructions
-        return pos.lookFor(LOOK_CREEPS).filter(c => {
-          if(c.id === creep.id) return false; // if self
-          if (!c.my) return false; // if not mine
-          if (!c.name.startsWith(this.prefix)) return false; // if not worker
-          if (!c.memory._trav.state) return false; // if moving
-          const [cx, cy, stuckCount, cpu, dx, dy, nm] = c.memory._trav.state;
-          return dx === c.pos.x || dy === c.pos.y;
-        }).length === 0
+        return (
+          pos.lookFor(LOOK_CREEPS).filter(c => {
+            if (c.id === creep.id) return false; // if self
+            if (!c.my) return false; // if not mine
+            if (!c.name.startsWith(this.prefix)) return false; // if not worker
+            if (!c.memory._trav.state) return false; // if moving
+            const [cx, cy, stuckCount, cpu, dx, dy, nm] = c.memory._trav.state;
+            return dx === c.pos.x || dy === c.pos.y;
+          }).length === 0
+        );
       });
-      if(slot) dest = room.getPositionAt(slot[0], slot[1]);
-
+      if (slot) dest = room.getPositionAt(slot[0], slot[1]);
     }
     // if no stamp, just anywhere
     if (!dest && creep.pos.getRangeTo(room.controller.pos) > 1) {
       dest = room.controller.pos;
     }
-    if(dest) creep.travelTo(dest);
+    if (dest) creep.travelTo(dest);
     creep.upgradeController(room.controller);
   }
 
@@ -520,7 +524,6 @@ export default class WorkerCreepService extends BaseCreepService {
     creep.transfer(target, RESOURCE_ENERGY, toGive);
   }
 
-
   private getCreepTypeBodyPartCount(creeps: Creep[], part: BodyPartConstant): number {
     return creeps.reduce((a, c) => {
       return a + c.getActiveBodyparts(part);
@@ -539,22 +542,26 @@ export default class WorkerCreepService extends BaseCreepService {
       _.set(this.creepsByType, [roomId, type], []);
     }
     const creepList: string[] = _.get(this.creepsByType, [roomId, type]);
-    return creepList.map(cName=> {
-      return Game.creeps[cName];
-    }, 0).filter(c => {
-      if(!c) return false;
-      if(c.ticksToLive === undefined) return true;
-      return c.ticksToLive > c.body.length * CREEP_SPAWN_TIME
-    });
+    return creepList
+      .map(cName => {
+        return Game.creeps[cName];
+      }, 0)
+      .filter(c => {
+        if (!c) return false;
+        if (c.ticksToLive === undefined) return true;
+        return c.ticksToLive > c.body.length * CREEP_SPAWN_TIME;
+      });
   }
 
-  private generateCreepParts(room: Room, initialParts: BodyPartConstant[], incrementalParts: BodyPartConstant[]): BodyPartConstant[]{
-      const initialCost: number = initialParts.reduce((a, p) => a + BODYPART_COST[p], 0);
-      const incrementalCost: number = incrementalParts.reduce((a, p) => a + BODYPART_COST[p], 0);
-      const increments = Math.floor(
-        (room.energyCapacityAvailable - initialCost) / incrementalCost
-      );
-      if(increments === 0) throw new Error("cannot afford parts")
-      return _.flatten([...initialParts, ...Array(increments).fill(incrementalParts)]);
+  private generateCreepParts(
+    room: Room,
+    initialParts: BodyPartConstant[],
+    incrementalParts: BodyPartConstant[]
+  ): BodyPartConstant[] {
+    const initialCost: number = initialParts.reduce((a, p) => a + BODYPART_COST[p], 0);
+    const incrementalCost: number = incrementalParts.reduce((a, p) => a + BODYPART_COST[p], 0);
+    const increments = Math.floor((room.energyCapacityAvailable - initialCost) / incrementalCost);
+    if (increments === 0) throw new Error("cannot afford parts");
+    return _.flatten([...initialParts, ...Array(increments).fill(incrementalParts)]);
   }
 }
