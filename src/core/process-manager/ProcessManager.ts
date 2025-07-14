@@ -68,7 +68,7 @@ export default class ProcessManager implements ServiceInterface {
       this.queue.splice(index, 1);
     }
     // scheduling
-    // this.printSchedule('W5S7')
+    this.printSchedule('W5S7')
     for (let i in this.schedule) {
       this.schedule[i].t -= 1;
       if (this.schedule[i].t <= 0) {

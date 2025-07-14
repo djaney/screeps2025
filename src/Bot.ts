@@ -2,7 +2,7 @@ import ProcessManager from './core/process-manager/ProcessManager';
 import WorkerCreepService from "./creeps/WorkerCreepService";
 import SpawnManager, { QueueCallback } from "./core/spawn-manager/SpawnManager";
 import BaseCreepService from "./core/BaseCreepService";
-import { ProcessUnit, ScheduleId } from "./core/process-manager/types";
+import { Priority, ProcessUnit, ScheduleId } from "./core/process-manager/types";
 import ServiceInterface from "./ServiceInterface";
 import PixelService from "./services/PixelService";
 import { BasePlanningService } from "./services/BasePlanningService";
@@ -56,6 +56,17 @@ export default class Bot {
   initialize(){
     this.creepServices = [new WorkerCreepService(this)]
     this.services = [new PixelService(this), new BasePlanningService(this), new TowerService(this)]
+
+    // clean creep memory
+    this.enqueueProcessIn("cleanCreepsMemory", {
+      priority: Priority.LOW,
+      func: () => {
+        for(let i in Memory.creeps){
+          if(!Game.creeps[i]) delete Memory.creeps[i]
+        }
+        return {scheduleIn: {id: "cleanCreepsMemory", t: 30}}
+      },
+    }, 30);
   }
 
   loop(){

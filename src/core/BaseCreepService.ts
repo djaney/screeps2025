@@ -1,6 +1,6 @@
-import { CreepBody } from "../creeps/types";
 import Bot from "../Bot";
 import ServiceInterface from "../ServiceInterface";
+import { Priority } from "./process-manager/types";
 
 export default abstract class BaseCreepService implements ServiceInterface {
   abstract prefix: string;
