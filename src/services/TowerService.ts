@@ -27,7 +27,8 @@ export default class TowerService implements ServiceInterface {
           }) as StructureTower[];
           if(towers){
             if(this.attackHostile(room, towers)) return RETURN_NEXT;
-            if(this.repairRamparts(room, towers)) return RETURN_NEXT;
+            if(this.repairDefense(room, towers)) return RETURN_NEXT;
+            if(this.repairAll(room, towers)) return RETURN_NEXT;
           }
 
 
@@ -37,14 +38,27 @@ export default class TowerService implements ServiceInterface {
       });
   }
 
-  repairRamparts(room: Room, towers: StructureTower[]): boolean{
+  repairDefense(room: Room, towers: StructureTower[]): boolean{
     const targetRamparts = room.find(FIND_MY_STRUCTURES, {
-      filter: s => s.structureType === STRUCTURE_RAMPART && s.hits < 100
+      filter: s => s.structureType in [STRUCTURE_RAMPART, STRUCTURE_WALL]  && s.hits < 100
     }) as StructureRampart[];
     targetRamparts.sort((a, b) => a.hits - b.hits)
     if(targetRamparts.length > 0){
       towers.forEach(t => {
         t.repair(targetRamparts[0]);
+      });
+      return true;
+    }
+    return false;
+  }
+
+  repairAll(room: Room, towers: StructureTower[]): boolean{
+    const targets = room.find(FIND_STRUCTURES, {
+      filter: s => !(s.structureType in [STRUCTURE_RAMPART, STRUCTURE_WALL])}) as StructureRampart[];
+    targets.sort((a, b) => a.hits/a.hitsMax - b.hits/b.hitsMax)
+    if(targets.length > 0){
+      towers.forEach(t => {
+        t.repair(targets[0]);
       });
       return true;
     }
