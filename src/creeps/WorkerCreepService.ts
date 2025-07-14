@@ -295,7 +295,9 @@ export default class WorkerCreepService extends BaseCreepService {
     const slot = this.miningIndex.getCreepSlot(creep);
     if (!slot) return;
     if (slot.pos && creep.pos.getRangeTo(slot.pos) > 0) {
+      creep.drop(RESOURCE_ENERGY); // drop all if moving
       creep.travelTo(slot.pos);
+      return;
     }
 
     // if creep has extra space

@@ -525,7 +525,9 @@ export class BasePlanningService implements ServiceInterface {
       const building = tmpBuildings[Number(i)];
       const [x, y] = building.p;
       TerrainAlgo.ring(x, y, 1).forEach(p => {
-        if (taken.get(...p) === 0 && potentialRoad.get(...p) > 0) place(...p, STRUCTURE_ROAD);
+        if (taken.get(...p) === 0 && potentialRoad.get(...p) > 0 && room.getTerrain().get(...p) !==  TERRAIN_MASK_WALL){
+          place(...p, STRUCTURE_ROAD);
+        }
       });
     }
 
