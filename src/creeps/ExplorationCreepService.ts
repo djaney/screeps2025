@@ -145,7 +145,7 @@ export default class ExplorationCreepService extends BaseCreepService {
 
         if (room.memory.cl === RoomClassification.CITY && !room.memory.ex) {
           // find rooms to exploit
-          const exits = Object.values(Game.map.describeExits(roomId)).filter(r => !Memory.rooms[r]?.cl);
+          const exits = Object.values(Game.map.describeExits(roomId) || {}).filter(r => !Memory.rooms[r]?.cl);
           exits.forEach(r => {
             if (!Memory.rooms[r]) Memory.rooms[r] = {};
             Memory.rooms[r].cl = RoomClassification.EXPLOIT;

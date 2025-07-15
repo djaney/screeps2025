@@ -286,7 +286,7 @@ export default class WorkerCreepService extends BaseCreepService {
   runMiner(creep: Creep) {
     const [prefix, type, roomId, idx] = this.splitCreepName(creep.name);
     if (!this.miningIndex.isCreepAssigned(creep)) {
-      const available = this.miningIndex.findAvailableSlot();
+      const available = this.miningIndex.findAvailableSlot(creep);
       if (available) {
         this.miningIndex.assignCreep(available, creep);
         this.logisticsIndex.addSource(new LSourceMiner(creep.id, RESOURCE_ENERGY));

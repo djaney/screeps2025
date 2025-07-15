@@ -118,7 +118,7 @@ export class MiningIndex {
     return slots;
   }
 
-  findAvailableSlot(): MinerSlot|undefined {
+  findAvailableSlot(creep: Creep): MinerSlot|undefined {
     // clean-up creeps first
     for(let i in this.creeps){
       if(!Game.getObjectById(i as Id<Creep>)) {
@@ -133,6 +133,13 @@ export class MiningIndex {
         slots = [...slots, ...s]
       }
     }
+    slots.sort((a, b) => {
+      if(!a.creepId || !b.creepId) return 0;
+      const creepA = Game.getObjectById(a.creepId);
+      const creepB = Game.getObjectById(b.creepId);
+      if(!creepA || !creepB) return 0;
+      return creepA.pos.getRangeTo(creep.pos) - creepB.pos.getRangeTo(creep.pos)
+    })
     return slots[0]
   }
 }
