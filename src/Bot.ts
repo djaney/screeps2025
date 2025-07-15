@@ -7,6 +7,7 @@ import ServiceInterface from "./ServiceInterface";
 import PixelService from "./services/PixelService";
 import { BasePlanningService } from "./services/BasePlanningService";
 import TowerService from "./services/TowerService";
+import ExplorationCreepService from "./creeps/ExplorationCreepService";
 type ServiceMap = {
   worker: WorkerCreepService
 }
@@ -54,7 +55,7 @@ export default class Bot {
   }
 
   initialize(){
-    this.creepServices = [new WorkerCreepService(this)]
+    this.creepServices = [new WorkerCreepService(this), new ExplorationCreepService(this)]
     this.services = [new PixelService(this), new BasePlanningService(this), new TowerService(this)]
 
     // clean creep memory

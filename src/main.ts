@@ -13,17 +13,16 @@ declare global {
   */
   // Memory extension samples
   interface Memory {
-    uuid: number;
-    log: any;
+    uuid?: number;
+    log?: any;
   }
 
   interface CreepMemory {
-    _travel: any;
-    _trav: any;
+    _travel?: any;
+    _trav?: any;
   }
 
   interface RoomMemory {
-    avoid: any
   }
 
   // Syntax for adding proprties to `global` (ex "global.log")
