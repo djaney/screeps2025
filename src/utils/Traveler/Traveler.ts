@@ -488,33 +488,49 @@ export class Traveler {
      */
 
     public static addStructuresToMatrix(room: Room, matrix: CostMatrix, roadCost: number): CostMatrix {
-
-        let impassibleStructures: Structure[] = [];
-        for (let structure of room.find(FIND_STRUCTURES)) {
-            if (structure instanceof StructureRampart) {
-                if (!structure.my && !structure.isPublic) {
-                    impassibleStructures.push(structure);
-                }
-            } else if (structure instanceof StructureRoad) {
-                matrix.set(structure.pos.x, structure.pos.y, roadCost);
-            } else if (structure instanceof StructureContainer) {
-                matrix.set(structure.pos.x, structure.pos.y, 5);
-            } else {
-                impassibleStructures.push(structure);
-            }
+      let impassibleStructures: Structure[] = [];
+      for (let structure of room.find(FIND_STRUCTURES)) {
+        if (structure instanceof StructureRampart) {
+          if (!structure.my && !structure.isPublic) {
+            impassibleStructures.push(structure);
+          }
+        } else if (structure instanceof StructureRoad) {
+          matrix.set(structure.pos.x, structure.pos.y, roadCost);
+        } else if (structure instanceof StructureContainer) {
+          matrix.set(structure.pos.x, structure.pos.y, 5);
+        } else {
+          impassibleStructures.push(structure);
         }
+      }
 
-        for (let site of room.find(FIND_MY_CONSTRUCTION_SITES)) {
-            if (site.structureType === STRUCTURE_CONTAINER || site.structureType === STRUCTURE_ROAD
-                || site.structureType === STRUCTURE_RAMPART) { continue; }
-            matrix.set(site.pos.x, site.pos.y, 0xff);
+      for (let site of room.find(FIND_MY_CONSTRUCTION_SITES)) {
+        if (
+          site.structureType === STRUCTURE_CONTAINER ||
+          site.structureType === STRUCTURE_ROAD ||
+          site.structureType === STRUCTURE_RAMPART
+        ) {
+          continue;
         }
+        matrix.set(site.pos.x, site.pos.y, 0xff);
+      }
 
-        for (let structure of impassibleStructures) {
-            matrix.set(structure.pos.x, structure.pos.y, 0xff);
+      for (let structure of impassibleStructures) {
+        matrix.set(structure.pos.x, structure.pos.y, 0xff);
+      }
+
+      // also add creeps that are not moving
+      room.find(FIND_MY_CREEPS).forEach(c => {
+        if (c.memory._trav && c.memory._trav.state) {
+          const [cx, cy, stuckCount, cpu, dx, dy, nm] = c.memory._trav.state;
+          if (dx === c.pos.x && dy === c.pos.y) {
+            matrix.set(c.pos.x, c.pos.y, 0xff);
+          }
+        }else{
+          matrix.set(c.pos.x, c.pos.y, 0xff);
         }
+      });
 
-        return matrix;
+      return matrix;
     }
 
     /**

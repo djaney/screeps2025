@@ -246,7 +246,7 @@ export default class WorkerCreepService extends BaseCreepService {
     }
     // controller
     else if (minerBodyCount > 1 && haulerBodyCount > 1 && controllerCreeps.length < 1) {
-      const parts = this.generateCreepParts(room, [MOVE, CARRY], [WORK, CARRY]);
+      const parts = this.generateCreepParts(room, [MOVE, CARRY], [MOVE, WORK, CARRY]);
       this.bot.enqueueSpawn(roomId, this.generateWorkerCreepName(WorkerType.CONTROLLER, roomId), parts, n => {
         try {
           this.runCreep(n);
@@ -264,7 +264,7 @@ export default class WorkerCreepService extends BaseCreepService {
       if (minerCreeps.length === 0) {
         parts = [MOVE, WORK, CARRY];
       } else {
-        parts = this.generateCreepParts(room, [MOVE, CARRY], [WORK, CARRY]);
+        parts = this.generateCreepParts(room, [MOVE, CARRY], [MOVE, WORK, CARRY]);
       }
 
       this.bot.enqueueSpawn(roomId, this.generateWorkerCreepName(WorkerType.MINER, roomId), parts, n => {
