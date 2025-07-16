@@ -1,6 +1,7 @@
 import { ProcessUnit, Schedule, ScheduleId } from "./types";
 import Bot from "../../Bot";
 import ServiceInterface from "../../ServiceInterface";
+import { printBox, PrintBoxCoordinates } from "../visual";
 
 export default class ProcessManager implements ServiceInterface {
   constructor(readonly bot: Bot) {}
@@ -68,7 +69,6 @@ export default class ProcessManager implements ServiceInterface {
       this.queue.splice(index, 1);
     }
     // scheduling
-    // this.printSchedule("E1N39")
     for (let i in this.schedule) {
       this.schedule[i].t -= 1;
       if (this.schedule[i].t <= 0) {
@@ -79,16 +79,17 @@ export default class ProcessManager implements ServiceInterface {
 
   }
 
-  printSchedule(roomId: string, originX: number, originY: number){
-    // print schedule
+  printSchedule(title: string, roomId: string, coords: PrintBoxCoordinates){
     const room = Game.rooms[roomId];
-    if(room){
+    if(!room) return;
+    printBox(room, title, {x: 0, y: 0, w: 10}, (coords) => {
       let count = 0;
       _.forEach(this.schedule, (s, id) => {
-        if(id) room.visual.text(`${s.t} - ${id}`, 0, count++, {
+        if(id) room.visual.text(`${s.t} - ${id}`, coords.x, coords.y + count++, {
           align: "left"
-        })
+        });
       })
-    }
+      return {...coords, y: coords.y + count}
+    })
   }
 }

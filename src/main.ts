@@ -23,6 +23,7 @@ declare global {
   }
 
   interface RoomMemory {
+    avoid?: any
   }
 
   // Syntax for adding proprties to `global` (ex "global.log")
