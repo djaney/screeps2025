@@ -202,9 +202,6 @@ export default class WorkerCreepService extends BaseCreepService {
     if (!room) return;
     if (!room.energyAvailable) return;
 
-    const currentSpawnQueueCount = this.bot.countSpawnQueue(roomId);
-    if (currentSpawnQueueCount > 0) return;
-
     // if there is a spawn and a resource
     const controllerCreeps = this.getCreepTypeSpawnedCount(roomId, WorkerType.CONTROLLER);
     const minerCreeps = this.getCreepTypeSpawnedCount(roomId, WorkerType.MINER);
@@ -214,13 +211,25 @@ export default class WorkerCreepService extends BaseCreepService {
     const haulerBodyCount = this.getCreepTypeBodyPartCount(haulerCreeps, CARRY);
     const minerBodyCount = this.getCreepTypeBodyPartCount(minerCreeps, WORK);
 
+    // console.log("-=SPAWN DEBUG=-")
+    // console.log("controllerCreeps", controllerCreeps)
+    // console.log("minerCreeps", minerCreeps)
+    // console.log("builderCreeps", builderCreeps)
+    // console.log("haulerCreeps", haulerCreeps)
+    // console.log("haulerBodyCount", haulerBodyCount)
+    // console.log("minerBodyCount", minerBodyCount)
+
+
     // clear queue if economy is stuck
     if (haulerBodyCount === 0 || minerBodyCount === 0) {
       this.bot.clearSpawnQueue(roomId);
     }
 
+    const currentSpawnQueueCount = this.bot.countSpawnQueue(roomId);
+    if (currentSpawnQueueCount > 0) return;
+
     // hauler
-    if (haulerBodyCount < minerBodyCount) {
+    if (haulerBodyCount < minerBodyCount * 2) {
       let parts: BodyPartConstant[];
       if (haulerBodyCount === 0) {
         parts = [MOVE, CARRY];

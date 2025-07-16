@@ -68,6 +68,7 @@ export default class ProcessManager implements ServiceInterface {
       this.queue.splice(index, 1);
     }
     // scheduling
+    // this.printSchedule("E1N39")
     for (let i in this.schedule) {
       this.schedule[i].t -= 1;
       if (this.schedule[i].t <= 0) {
@@ -78,7 +79,7 @@ export default class ProcessManager implements ServiceInterface {
 
   }
 
-  printSchedule(roomId: string){
+  printSchedule(roomId: string, originX: number, originY: number){
     // print schedule
     const room = Game.rooms[roomId];
     if(room){
