@@ -40,8 +40,9 @@ export default class TowerService implements ServiceInterface {
 
   repairDefense(room: Room, towers: StructureTower[]): boolean{
     const targetRamparts = room.find(FIND_MY_STRUCTURES, {
-      filter: s => s.structureType in [STRUCTURE_RAMPART, STRUCTURE_WALL]  && s.hits < 100
+      filter: s => s.structureType in [STRUCTURE_RAMPART, STRUCTURE_WALL]  && s.hits < 1000
     }) as StructureRampart[];
+
     targetRamparts.sort((a, b) => a.hits - b.hits)
     if(targetRamparts.length > 0){
       towers.forEach(t => {
@@ -54,8 +55,9 @@ export default class TowerService implements ServiceInterface {
 
   repairAll(room: Room, towers: StructureTower[]): boolean{
     const targets = room.find(FIND_STRUCTURES, {
-      filter: s => !(s.structureType in [STRUCTURE_RAMPART, STRUCTURE_WALL])}) as StructureRampart[];
+      filter: s => s.structureType !== STRUCTURE_RAMPART && s.structureType !== STRUCTURE_WALL}) as StructureRampart[];
     targets.sort((a, b) => a.hits/a.hitsMax - b.hits/b.hitsMax)
+
     if(targets.length > 0){
       towers.forEach(t => {
         t.repair(targets[0]);
