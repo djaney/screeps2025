@@ -125,20 +125,26 @@ export default class WorkerCreepService extends BaseCreepService {
           const b: Building = buildings[i];
           const pos = room.getPositionAt(...b.p);
           if (!pos) continue;
-          // destroy obstacle
-          if (b.b in OBSTACLE_OBJECT_TYPES) {
-            const obstacle = pos.lookFor(LOOK_STRUCTURES).find(s => s.structureType in OBSTACLE_OBJECT_TYPES);
+
+          const structuresInPos = pos.lookFor(LOOK_STRUCTURES);
+          // ignore if already built
+          if(structuresInPos.find(i => i.structureType === b.b)) continue;
+          // destroy if wrong object built
+          // @ts-ignore
+          if (OBSTACLE_OBJECT_TYPES.includes(b.b)) {
+            const obstacle = structuresInPos.find(s => s.structureType in OBSTACLE_OBJECT_TYPES);
             if (obstacle) {
               obstacle.destroy();
               continue;
             }
           }
+
           const res = pos.createConstructionSite(b.b);
           if (res === OK) {
             break;
           } else if (res === ERR_RCL_NOT_ENOUGH) {
           } else {
-            console.log(`Error placing construction site ${res}`);
+            console.log(`Error placing ${b.b} in ${JSON.stringify(b.p)}@${roomId}: ${res}`);
           }
         }
 
