@@ -30,9 +30,6 @@ export default class TowerService implements ServiceInterface {
             if(this.repairDefense(room, towers)) return RETURN_NEXT;
             if(this.repairAll(room, towers)) return RETURN_NEXT;
           }
-
-
-
           return RETURN_NEXT;
         }
       });
@@ -57,14 +54,15 @@ export default class TowerService implements ServiceInterface {
   repairAll(room: Room, towers: StructureTower[]): boolean{
     let didRepair = false;
     const targets = room.find(FIND_STRUCTURES, {
-      filter: s => s.structureType !== STRUCTURE_RAMPART && s.structureType !== STRUCTURE_WALL}) as StructureRampart[];
+      filter: s => s.structureType !== STRUCTURE_RAMPART && s.structureType !== STRUCTURE_WALL});
     targets.sort((a, b) => a.hits/a.hitsMax - b.hits/b.hitsMax)
-
     if(targets.length > 0){
       const optimalRange = 5;
       const falloffRange = 20
       _(targets).forEach(target => {
         let deficit = target.hitsMax - target.hits;
+        // stop if no more towers
+        if(towers.length === 0) return false;
         _(towers).remove(tower => {
           let range = target.pos.getRangeTo(tower);
           let pow = 800;
@@ -73,18 +71,19 @@ export default class TowerService implements ServiceInterface {
               range = falloffRange
             }
             pow -= pow * falloffRange * (range - optimalRange) / (falloffRange - optimalRange);
-            if(deficit >= pow && tower.repair(target) === OK){
-                deficit -= pow;
-                didRepair = true;
-                return true;
-            }
+          }
+          console.log(`${target.structureType} deficit=${deficit} pow=${pow}`)
+          console.log("tower", tower.structureType)
+          if(deficit >= pow && tower.repair(target) === OK){
+            deficit -= pow;
+            didRepair = true;
+            return true;
           }
           return false;
-        });
-        // stop if no more towers
-        if(towers.length === 0) return false;
+        }).run();
+
         return;
-      })
+      }).run()
     }
     return didRepair;
   }
