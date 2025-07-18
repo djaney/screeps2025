@@ -283,7 +283,7 @@ export default class WorkerCreepService extends BaseCreepService {
     }
     // builder
     else if (3 > builderCreeps.length) {
-      const parts = this.generateCreepParts(room, [MOVE, CARRY], [WORK, CARRY]);
+      const parts = this.generateCreepParts(room, [MOVE, CARRY], [MOVE, WORK, CARRY]);
       this.bot.enqueueSpawn(roomId, this.generateWorkerCreepName(WorkerType.BUILDER, roomId), parts, n => {
         try {
           this.runCreep(n);

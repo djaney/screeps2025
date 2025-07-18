@@ -39,10 +39,11 @@ export default class TowerService implements ServiceInterface {
   }
 
   repairDefense(room: Room, towers: StructureTower[]): boolean{
-    const targetRamparts = room.find(FIND_MY_STRUCTURES, {
-      filter: s => s.structureType in [STRUCTURE_RAMPART, STRUCTURE_WALL]  && s.hits < 1000
-    }) as StructureRampart[];
 
+    const targetRamparts = room.find(FIND_MY_STRUCTURES, {
+      // @ts-ignore
+      filter: s => [STRUCTURE_RAMPART, STRUCTURE_WALL].includes(s.structureType) && s.hits < 1000
+    }) as StructureRampart[];
     targetRamparts.sort((a, b) => a.hits - b.hits)
     if(targetRamparts.length > 0){
       towers.forEach(t => {
@@ -54,17 +55,38 @@ export default class TowerService implements ServiceInterface {
   }
 
   repairAll(room: Room, towers: StructureTower[]): boolean{
+    let didRepair = false;
     const targets = room.find(FIND_STRUCTURES, {
       filter: s => s.structureType !== STRUCTURE_RAMPART && s.structureType !== STRUCTURE_WALL}) as StructureRampart[];
     targets.sort((a, b) => a.hits/a.hitsMax - b.hits/b.hitsMax)
 
     if(targets.length > 0){
-      towers.forEach(t => {
-        t.repair(targets[0]);
-      });
-      return true;
+      const optimalRange = 5;
+      const falloffRange = 20
+      _(targets).forEach(target => {
+        let deficit = target.hitsMax - target.hits;
+        _(towers).remove(tower => {
+          let range = target.pos.getRangeTo(tower);
+          let pow = 800;
+          if (range > optimalRange){
+            if(range >= falloffRange){
+              range = falloffRange
+            }
+            pow -= pow * falloffRange * (range - optimalRange) / (falloffRange - optimalRange);
+            if(deficit >= pow && tower.repair(target) === OK){
+                deficit -= pow;
+                didRepair = true;
+                return true;
+            }
+          }
+          return false;
+        });
+        // stop if no more towers
+        if(towers.length === 0) return false;
+        return;
+      })
     }
-    return false;
+    return didRepair;
   }
 
   attackHostile(room: Room, towers: StructureTower[]): boolean{
