@@ -106,7 +106,7 @@ export class LogisticIndex {
         delete roomSinks[i]
       }
       // @ts-ignore
-      const sinkRemaining = roomSinks[i].getRemainingValue();
+      const sinkRemaining = roomSinks[i] ? roomSinks[i].getRemainingValue() : 0;
       if(roomSinks[i] && sinkRemaining > 0 && fulfilled < amount && roomSinks[i].resource === resource){
         fulfilled += roomSinks[i].getRemainingValue();
         out.push(roomSinks[i])
