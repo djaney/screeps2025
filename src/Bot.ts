@@ -9,6 +9,14 @@ import { BasePlanningService } from "./services/BasePlanningService";
 import TowerService from "./services/TowerService";
 import ExplorationCreepService from "./creeps/ExplorationCreepService";
 import { PrintBoxCoordinates } from "./core/visual";
+
+declare global {
+  interface Memory {
+    debugService?: string[];
+  }
+}
+
+
 type ServiceMap = {
   worker: WorkerCreepService
 }
@@ -73,8 +81,15 @@ export default class Bot {
 
   loop(){
     this.process.loop();
-    let debugCoords: PrintBoxCoordinates = {x: 0, y: 0, w: 10};
-    this.process.printSchedule("Schedule", "E1N39", debugCoords)
+    // debug
+    if(Memory.debugService && Memory.debugService.length > 0){
+      let debugCoords: PrintBoxCoordinates = {x: 0, y: 0, w: 10};
+      _(this.creepServices).forEach((svc) => {
+        if(!Memory.debugService?.includes(svc.prefix)) return;
+        debugCoords = svc.debug(debugCoords);
+      }).run()
+    }
+
   }
 
   enqueueSpawn(roomId: string, name: string, body: BodyPartConstant[], callback: QueueCallback){

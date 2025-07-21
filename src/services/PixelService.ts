@@ -1,6 +1,7 @@
 import ServiceInterface from "../ServiceInterface";
 import Bot from "../Bot";
 import { Priority } from "../core/process-manager/types";
+import { PrintBoxCoordinates } from "../core/visual";
 
 export default class PixelService implements ServiceInterface {
   constructor(readonly bot: Bot) {}
@@ -26,4 +27,7 @@ export default class PixelService implements ServiceInterface {
   }
 
   initializeRoom(roomId: string) {}
+  debug(coords: PrintBoxCoordinates): PrintBoxCoordinates {
+    return coords
+  }
 }

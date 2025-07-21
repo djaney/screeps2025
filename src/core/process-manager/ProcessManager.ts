@@ -76,20 +76,23 @@ export default class ProcessManager implements ServiceInterface {
         delete this.schedule[i];
       }
     }
-
+  }
+  debug(coords: PrintBoxCoordinates): PrintBoxCoordinates {
+    return this.printSchedule("Schedule", "E1N39", coords) || coords
   }
 
-  printSchedule(title: string, roomId: string, coords: PrintBoxCoordinates){
+  printSchedule(title: string, roomId: string, coords: PrintBoxCoordinates) {
     const room = Game.rooms[roomId];
-    if(!room) return;
-    printBox(room, title, {x: 0, y: 0, w: 10}, (coords) => {
+    if (!room) return;
+    return printBox(room, title, { x: 0, y: 0, w: 10 }, coords => {
       let count = 0;
       _.forEach(this.schedule, (s, id) => {
-        if(id) room.visual.text(`${s.t} - ${id}`, coords.x, coords.y + count++, {
-          align: "left"
-        });
-      })
-      return {...coords, y: coords.y + count}
-    })
+        if (id)
+          room.visual.text(`${s.t} - ${id}`, coords.x, coords.y + count++, {
+            align: "left"
+          });
+      });
+      return { ...coords, y: coords.y + count };
+    });
   }
 }

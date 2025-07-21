@@ -8,6 +8,7 @@ import Bot from "../Bot";
 import { Priority } from "../core/process-manager/types";
 import TerrainAlgo from "../utils/TerrainAlgo";
 import { ErrorMapper } from "../utils/ErrorMapper";
+import { PrintBoxCoordinates } from "../core/visual";
 
 type XY = [number, number];
 
@@ -50,7 +51,7 @@ interface StampBox {
 }
 
 export class BasePlanningService implements ServiceInterface {
-  constructor(readonly bot: Bot, readonly debug = true) {}
+  constructor(readonly bot: Bot) {}
 
   initialize() {
     Object.keys(Game.rooms).forEach(roomId => {
@@ -58,74 +59,78 @@ export class BasePlanningService implements ServiceInterface {
     });
   }
 
+  debug(coords: PrintBoxCoordinates): PrintBoxCoordinates {
+    return coords
+  }
+
   initializeRoom(roomId: string) {
     this.bot.enqueueProcess({
-        priority: Priority.LOW,
-        func: () => {
-          const room = Game.rooms[roomId];
-          if (!room) return;
-          // only if controller claimed
-          if(!room.controller?.my) return;
+      priority: Priority.LOW,
+      func: () => {
+        const room = Game.rooms[roomId];
+        if (!room) return;
+        // only if controller claimed
+        if (!room.controller?.my) return;
 
-          // defined result means already done
-          if (room.memory.bp?.result !== undefined) {
-            return;
-          }
-
-          try {
-            if (!room.memory.bp) room.memory.bp = {};
-            if (!room.memory.bp.distTrans) {
-              this.findDistTrans(room);
-            } else if (room.memory.bp.distTrans && !room.memory.bp.upgrade) {
-              this.findUpgrade(room);
-            } else if (room.memory.bp.distTrans && !room.memory.bp.core) {
-              this.findCore(room);
-            } else if (!room.memory.bp.costMat) {
-              this.findCostMat(room);
-            } else if (!room.memory.bp.labs) {
-              this.findLabs(room);
-            } else if (!room.memory.bp.constructionSites || !room.memory.bp.potentialRoad) {
-              this.findBuildingSites(room);
-            } else if ((Game.rooms.sim || Game.cpu.tickLimit >= 50) && !room.memory.bp.buildings) {
-              this.generateBuildings(room);
-            } else if ((Game.rooms.sim || Game.cpu.tickLimit >= 50) && !room.memory.bp.ramparts) {
-              this.generateRamparts(room);
-            } else {
-              // DONE
-              room.memory.bp = {
-                result: true,
-                buildings: room.memory.bp.buildings,
-                core: room.memory.bp.core,
-                upgrade: room.memory.bp.upgrade,
-                labs: room.memory.bp.labs
-              };
-              return;
-            }
-          } catch (e) {
-            if(e instanceof Error){
-              room.memory.bp = { err: _.escape(ErrorMapper.sourceMappedStackTrace(e)), result: false };
-            }else{
-              room.memory.bp = { err: String(e), result: false };
-            }
-
-            return;
-          }
-
-          if (this.debug && room.memory.bp.upgrade) this.renderStamp(room, room.memory.bp.upgrade);
-          if (this.debug && room.memory.bp.core) this.renderStamp(room, room.memory.bp.core);
-          if (this.debug && room.memory.bp.labs) this.renderLabs(room, room.memory.bp.labs);
-          if (this.debug && room.memory.bp.constructionSites)
-            this.renderConstructionSites(room, room.memory.bp.constructionSites);
-          if (this.debug && room.memory.bp.buildings) this.renderBuildings(room, room.memory.bp.buildings);
-
-          return { scheduleIn: { id: `bp.${roomId}`, t: 1 } };
+        // defined result means already done
+        if (room.memory.bp?.result !== undefined) {
+          return;
         }
-      });
+
+        try {
+          if (!room.memory.bp) room.memory.bp = {};
+          if (!room.memory.bp.distTrans) {
+            this.findDistTrans(room);
+          } else if (room.memory.bp.distTrans && !room.memory.bp.upgrade) {
+            this.findUpgrade(room);
+          } else if (room.memory.bp.distTrans && !room.memory.bp.core) {
+            this.findCore(room);
+          } else if (!room.memory.bp.costMat) {
+            this.findCostMat(room);
+          } else if (!room.memory.bp.labs) {
+            this.findLabs(room);
+          } else if (!room.memory.bp.constructionSites || !room.memory.bp.potentialRoad) {
+            this.findBuildingSites(room);
+          } else if ((Game.rooms.sim || Game.cpu.tickLimit >= 50) && !room.memory.bp.buildings) {
+            this.generateBuildings(room);
+          } else if ((Game.rooms.sim || Game.cpu.tickLimit >= 50) && !room.memory.bp.ramparts) {
+            this.generateRamparts(room);
+          } else {
+            // DONE
+            room.memory.bp = {
+              result: true,
+              buildings: room.memory.bp.buildings,
+              core: room.memory.bp.core,
+              upgrade: room.memory.bp.upgrade,
+              labs: room.memory.bp.labs
+            };
+            return;
+          }
+        } catch (e) {
+          if (e instanceof Error) {
+            room.memory.bp = { err: _.escape(ErrorMapper.sourceMappedStackTrace(e)), result: false };
+          } else {
+            room.memory.bp = { err: String(e), result: false };
+          }
+
+          return;
+        }
+
+        if (true && room.memory.bp.upgrade) this.renderStamp(room, room.memory.bp.upgrade);
+        if (true && room.memory.bp.core) this.renderStamp(room, room.memory.bp.core);
+        if (true && room.memory.bp.labs) this.renderLabs(room, room.memory.bp.labs);
+        if (true && room.memory.bp.constructionSites)
+          this.renderConstructionSites(room, room.memory.bp.constructionSites);
+        if (true && room.memory.bp.buildings) this.renderBuildings(room, room.memory.bp.buildings);
+
+        return { scheduleIn: { id: `bp.${roomId}`, t: 1 } };
+      }
+    });
   }
 
   findDistTrans(room: Room) {
     if (!room.memory.bp) room.memory.bp = {};
-    const distTrans = getDistanceTransform(room.name, { visual: this.debug });
+    const distTrans = getDistanceTransform(room.name, { visual: true });
     room.memory.bp.distTrans = distTrans.serialize();
   }
 
@@ -166,7 +171,7 @@ export class BasePlanningService implements ServiceInterface {
 
     const spawn = room.find(FIND_MY_SPAWNS)[0];
 
-    if(!spawn && "sim" in Game.rooms) return; // simulations need spawn
+    if (!spawn && "sim" in Game.rooms) return; // simulations need spawn
 
     if (spawn) {
       room.memory.bp.core = { x: spawn.pos.x + 1, y: spawn.pos.y + 1, r: 2 };
@@ -204,7 +209,7 @@ export class BasePlanningService implements ServiceInterface {
     if (!room.memory.bp.core) return;
     const coreCenterPos = room.getPositionAt(room.memory.bp.core.x, room.memory.bp.core.y);
     if (!coreCenterPos) return;
-    const costMat = getPositionsByPathCost(room.name, [coreCenterPos], { visual: this.debug });
+    const costMat = getPositionsByPathCost(room.name, [coreCenterPos], { visual: true });
     room.memory.bp.costMat = costMat.serialize();
   }
 
@@ -525,7 +530,7 @@ export class BasePlanningService implements ServiceInterface {
       const building = tmpBuildings[Number(i)];
       const [x, y] = building.p;
       TerrainAlgo.ring(x, y, 1).forEach(p => {
-        if (taken.get(...p) === 0 && potentialRoad.get(...p) > 0 && room.getTerrain().get(...p) !==  TERRAIN_MASK_WALL){
+        if (taken.get(...p) === 0 && potentialRoad.get(...p) > 0 && room.getTerrain().get(...p) !== TERRAIN_MASK_WALL) {
           place(...p, STRUCTURE_ROAD);
         }
       });

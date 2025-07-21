@@ -1,6 +1,7 @@
 import Bot from "../Bot";
 import ServiceInterface from "../ServiceInterface";
 import { Priority } from "./process-manager/types";
+import { PrintBoxCoordinates } from "./visual";
 
 export default abstract class BaseCreepService implements ServiceInterface {
   abstract prefix: string;
@@ -11,6 +12,9 @@ export default abstract class BaseCreepService implements ServiceInterface {
     this.bot.creepServicePrefixIndex[this.prefix] = this;
   }
   initializeRoom(roomId: string) {}
+  debug(coords: PrintBoxCoordinates): PrintBoxCoordinates {
+    return coords
+  }
 
   abstract runCreep(name: string): void;
 

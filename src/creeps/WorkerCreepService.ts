@@ -6,6 +6,8 @@ import { LSourceMiner } from "../core/logistics/sources";
 import { LogisticIndex } from "../core/logistics/LogisticIndex";
 import { Building } from "../services/BasePlanningService";
 import TerrainAlgo from "../utils/TerrainAlgo";
+import { PrintBoxCoordinates } from "../core/visual";
+import { CreepIndex } from "../core/logistics/logistics";
 
 enum WorkerType {
   MINER = "m",
@@ -62,6 +64,28 @@ export default class WorkerCreepService extends BaseCreepService {
     }
     const creepList: string[] = _.get(this.creepsByType, [roomId, type]);
     _.remove(creepList, c => c === name);
+  }
+
+  debug(coords: PrintBoxCoordinates): PrintBoxCoordinates {
+
+    // @ts-ignore
+    _(this.logisticsIndex.creeps).forEach((value: CreepIndex, key: Id<Creep>) => {
+      const creep = Game.getObjectById(key);
+      if(!creep) return;
+      value.sources.forEach(s => {
+        const sObj = Game.getObjectById(s.id);
+        if(!sObj) return;
+        creep.room.visual.line(creep.pos, sObj.pos, {color: "blue"})
+      value.sinks.forEach(s => {
+        const sObj = Game.getObjectById(s.id);
+        if(!sObj) return;
+        creep.room.visual.line(creep.pos, sObj.pos, {color: "green"})
+      });
+
+      })
+    }).run();
+
+    return super.debug(coords);
   }
 
   runCreep(name: string) {
@@ -128,7 +152,7 @@ export default class WorkerCreepService extends BaseCreepService {
 
           const structuresInPos = pos.lookFor(LOOK_STRUCTURES);
           // ignore if already built
-          if(structuresInPos.find(i => i.structureType === b.b)) continue;
+          if (structuresInPos.find(i => i.structureType === b.b)) continue;
           // destroy if wrong object built
           // @ts-ignore
           if (OBSTACLE_OBJECT_TYPES.includes(b.b)) {
@@ -224,7 +248,6 @@ export default class WorkerCreepService extends BaseCreepService {
     // console.log("haulerCreeps", haulerCreeps)
     // console.log("haulerBodyCount", haulerBodyCount)
     // console.log("minerBodyCount", minerBodyCount)
-
 
     // clear queue if economy is stuck
     if (haulerBodyCount === 0 || minerBodyCount === 0) {
@@ -340,7 +363,7 @@ export default class WorkerCreepService extends BaseCreepService {
       if (containers.length > 0) {
         creep.transfer(containers[0], RESOURCE_ENERGY, HARVEST_POWER * creep.getActiveBodyparts(WORK));
         const containerRepair = containers.find(c => c.hits < c.hitsMax);
-        if(containerRepair){
+        if (containerRepair) {
           creep.repair(containerRepair);
         }
       }
