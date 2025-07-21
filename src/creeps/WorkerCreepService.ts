@@ -235,7 +235,7 @@ export default class WorkerCreepService extends BaseCreepService {
     if (currentSpawnQueueCount > 0) return;
 
     // hauler
-    if (haulerBodyCount < minerBodyCount * 2) {
+    if (haulerBodyCount < minerBodyCount * 3) {
       let parts: BodyPartConstant[];
       if (haulerBodyCount === 0) {
         parts = [MOVE, CARRY];
