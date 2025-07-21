@@ -339,6 +339,10 @@ export default class WorkerCreepService extends BaseCreepService {
       });
       if (containers.length > 0) {
         creep.transfer(containers[0], RESOURCE_ENERGY, HARVEST_POWER * creep.getActiveBodyparts(WORK));
+        const containerRepair = containers.find(c => c.hits < c.hitsMax);
+        if(containerRepair){
+          creep.repair(containerRepair);
+        }
       }
     }
 
