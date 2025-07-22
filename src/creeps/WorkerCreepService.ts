@@ -72,17 +72,17 @@ export default class WorkerCreepService extends BaseCreepService {
     _(this.logisticsIndex.creeps).forEach((value: CreepIndex, key: Id<Creep>) => {
       const creep = Game.getObjectById(key);
       if(!creep) return;
-      value.sources.forEach(s => {
+      const alloc = this.logisticsIndex.getCreepAllocation(creep);
+      alloc.sources.forEach(s => {
         const sObj = Game.getObjectById(s.id);
         if(!sObj) return;
-        creep.room.visual.line(creep.pos, sObj.pos, {color: "blue"})
-      value.sinks.forEach(s => {
-        const sObj = Game.getObjectById(s.id);
-        if(!sObj) return;
-        creep.room.visual.line(creep.pos, sObj.pos, {color: "green"})
+        creep.room.visual.line(creep.pos, sObj.pos, {color: "yellow", lineStyle: "dotted"})
       });
-
-      })
+      alloc.sinks.forEach(s => {
+        const sObj = Game.getObjectById(s.id);
+        if(!sObj) return;
+        creep.room.visual.line(creep.pos, sObj.pos, {color: "yellow"})
+      });
     }).run();
 
     return super.debug(coords);
@@ -423,13 +423,6 @@ export default class WorkerCreepService extends BaseCreepService {
         } else if (creep.pos.getRangeTo(target.pos) > 1) {
           creep.travelTo(target);
         } else {
-          // re-allocate to account for constantly growing miner
-          this.logisticsIndex.deallocateSource(creep, s);
-          this.logisticsIndex.allocateSource(
-            creep,
-            s,
-            Math.min(creep.store.getFreeCapacity(s.resource), s.getFreeValue())
-          );
           s.pickup(creep, a.value);
           this.logisticsIndex.deallocateSource(creep, s);
         }
