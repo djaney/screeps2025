@@ -345,12 +345,13 @@ export default class WorkerCreepService extends BaseCreepService {
       const dropped = creep.pos.lookFor(LOOK_RESOURCES);
       if (dropped.length > 0) {
         creep.pickup(dropped[0]);
-      } else {
+      }
+      else {
         const containers: StructureContainer[] = creep.pos.findInRange(FIND_STRUCTURES, 1, {
           filter: s => s.structureType === STRUCTURE_CONTAINER && s.store.getUsedCapacity(RESOURCE_ENERGY) > 0
         });
         if (containers.length > 0) {
-          creep.withdraw(containers[0], RESOURCE_ENERGY, HARVEST_POWER * creep.getActiveBodyparts(WORK));
+          creep.withdraw(containers[0], RESOURCE_ENERGY);
         }
       }
     }
