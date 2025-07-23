@@ -1,5 +1,5 @@
-export type LSourceConstant = Creep
-export type LSinkConstant = StructureSpawn|Creep|StructureExtension|StructureTower
+export type LSourceConstant = Creep | StructureStorage
+export type LSinkConstant = StructureSpawn|Creep|StructureExtension|StructureTower|StructureStorage
 export type LResourceConstant = RESOURCE_ENERGY
 export type NodeAllocation = {[id in Id<Creep>]?:AllocationValue}
 export type AllocationValue = { id: Id<Creep>, value: number }
@@ -63,9 +63,9 @@ export abstract class BaseNode{
   }
 }
 
-export abstract class BaseSource extends BaseNode{
+export abstract class BaseSource<T extends LSourceConstant> extends BaseNode{
   assumeFull: boolean = false;
-  constructor(readonly id: Id<Creep>, readonly resource: LResourceConstant) {
+  constructor(readonly id: Id<T>, readonly resource: LResourceConstant) {
     super()
   }
 
@@ -76,6 +76,7 @@ export abstract class BaseSource extends BaseNode{
     this.clean()
 
     // use getCapacity, always assume miner is full
+    // @ts-ignore
     const storedValue = this.assumeFull ? (obj.store.getCapacity(this.resource) || 0) : (obj.store.getUsedCapacity(this.resource) || 0);
 
     const allocatedValue = Object.values(this.allocation).reduce((a, alloc) => {
@@ -93,7 +94,7 @@ export abstract class BaseSource extends BaseNode{
 
 }
 
-export abstract class BaseCreepSource extends BaseSource implements LSourceInterface<Creep> {
+export abstract class BaseCreepSource extends BaseSource<Creep> implements LSourceInterface<Creep> {
   pickup(creep: Creep, amount: number): number {
     const other = Game.getObjectById(this.id);
     if (!other) return ERR_INVALID_TARGET;

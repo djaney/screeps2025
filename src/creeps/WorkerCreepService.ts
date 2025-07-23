@@ -2,7 +2,7 @@ import BaseCreepService from "../core/BaseCreepService";
 import { Priority } from "../core/process-manager/types";
 import { MiningIndex } from "../core/mining/mining";
 import { TransferSink } from "../core/logistics/sinks";
-import { LSourceMiner } from "../core/logistics/sources";
+import { LSourceMiner, StorageSource } from "../core/logistics/sources";
 import { LogisticIndex } from "../core/logistics/LogisticIndex";
 import { Building } from "../services/BasePlanningService";
 import TerrainAlgo from "../utils/TerrainAlgo";
@@ -67,21 +67,36 @@ export default class WorkerCreepService extends BaseCreepService {
   }
 
   debug(coords: PrintBoxCoordinates): PrintBoxCoordinates {
-
+    const colors = [
+      "red", "orange", "yellow", "green", "blue", "violet"
+    ]
+    let creepColorCounter = 0;
     // @ts-ignore
     _(this.logisticsIndex.creeps).forEach((value: CreepIndex, key: Id<Creep>) => {
       const creep = Game.getObjectById(key);
       if(!creep) return;
+      const color = colors[creepColorCounter++ % colors.length ];
       const alloc = this.logisticsIndex.getCreepAllocation(creep);
+      let lastPos = creep.pos;
       alloc.sources.forEach(s => {
         const sObj = Game.getObjectById(s.id);
         if(!sObj) return;
-        creep.room.visual.line(creep.pos, sObj.pos, {color: "yellow", lineStyle: "dotted"})
+        creep.room.visual.line(lastPos, sObj.pos, {color: color, lineStyle: "dotted"})
+        lastPos = sObj.pos
+
       });
+      const totalStored = alloc.sinks.reduce((a, s) => {
+        const sObj = Game.getObjectById(s.id);
+        if(!sObj) return a;
+        return a + sObj.store.getUsedCapacity(s.resource)
+      }, 0);
+      let remainingStored = totalStored;
       alloc.sinks.forEach(s => {
         const sObj = Game.getObjectById(s.id);
         if(!sObj) return;
-        creep.room.visual.line(creep.pos, sObj.pos, {color: "yellow"})
+        creep.room.visual.line(lastPos, sObj.pos, {color: color, opacity: 0.3 + (0.7*(remainingStored/totalStored))})
+        lastPos = sObj.pos
+        remainingStored -= sObj.store.getUsedCapacity(s.resource)
       });
     }).run();
 
@@ -191,11 +206,20 @@ export default class WorkerCreepService extends BaseCreepService {
     const room = Game.rooms[roomId];
     if (!room) return;
     room.find(FIND_MY_STRUCTURES).forEach(s => {
-      // @ts-ignore
-      if (s.store?.getCapacity(RESOURCE_ENERGY)) {
+      if(s.structureType === STRUCTURE_STORAGE){
         // @ts-ignore
-        this.logisticsIndex.addSink(new TransferSink(s.id, RESOURCE_ENERGY));
+        if (s.store?.getUsedCapacity(RESOURCE_ENERGY)) {
+          // @ts-ignore
+          this.logisticsIndex.addSource(new StorageSource(s.id, RESOURCE_ENERGY));
+        }
+      }else{
+        // @ts-ignore
+        if (s.store?.getCapacity(RESOURCE_ENERGY)) {
+          // @ts-ignore
+          this.logisticsIndex.addSink(new TransferSink(s.id, RESOURCE_ENERGY));
+        }
       }
+
     });
   }
 

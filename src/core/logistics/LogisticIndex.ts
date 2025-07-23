@@ -51,7 +51,7 @@ export class LogisticIndex {
     const roomSources = this.sources[roomId];
     if(!roomSources) return []
     let fulfilled = 0;
-    const out: LSourceInterface<LSourceConstant>[] = []
+    let out: LSourceInterface<LSourceConstant>[] = []
     for (let i in roomSources){
       // cleanup
       if(!Game.getObjectById(roomSources[i].id)){
@@ -79,9 +79,18 @@ export class LogisticIndex {
         return acc + obj.store.getUsedCapacity(a.resource)
       }, 0);
     }
+    // separate storages
+    const storages = _.remove(out, s => {
+      const o = Game.getObjectById(s.id);
+      if(!o) return false;
+      return (o as StructureStorage).structureType == STRUCTURE_STORAGE
+    });
+    // sort by least allocated
     out.sort((a,b) => {
       return  getSourceAllocationValue(b) - getSourceAllocationValue(a);
-    })
+    });
+    // join
+    out = out.concat(storages)
     return out;
   }
   /**
@@ -94,7 +103,7 @@ export class LogisticIndex {
     const roomSinks = this.sinks[roomId];
     if(!roomSinks) return []
     let fulfilled = 0;
-    const out: LSinkInterface<LSinkConstant>[] = []
+    let out: LSinkInterface<LSinkConstant>[] = []
     for (let i in roomSinks){
       // cleanup
       if(!Game.getObjectById(roomSinks[i].id)){
@@ -112,9 +121,16 @@ export class LogisticIndex {
         out.push(roomSinks[i])
       }
     }
+    // separate storages
+    const storages = _.remove(out, s => {
+      const o = Game.getObjectById(s.id);
+      if(!o) return false;
+      return (o as StructureStorage).structureType == STRUCTURE_STORAGE
+    });
     out.sort((a, b) => {
       return a.lastTick - b.lastTick;
     });
+    out = out.concat(storages)
     return out;
   }
 
