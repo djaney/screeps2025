@@ -467,7 +467,13 @@ export default class WorkerCreepService extends BaseCreepService {
         const target = Game.getObjectById(s.id);
         if (target && res === ERR_NOT_IN_RANGE) {
           creep.travelTo(target);
-        } else {
+        } else if(res === ERR_NOT_ENOUGH_ENERGY || res === ERR_NOT_ENOUGH_RESOURCES){
+          // if no not enough, try again next
+          this.logisticsIndex.deallocateSink(creep, s);
+          this.runHauler(creep);
+          return;
+        }
+        else {
           this.logisticsIndex.deallocateSink(creep, s);
         }
       }

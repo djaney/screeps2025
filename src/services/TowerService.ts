@@ -56,7 +56,7 @@ export default class TowerService implements ServiceInterface {
   repairAll(room: Room, towers: StructureTower[]): boolean {
     let didRepair = false;
     const targets = room.find(FIND_STRUCTURES, {
-      filter: s => s.structureType !== STRUCTURE_RAMPART && s.structureType !== STRUCTURE_WALL
+      filter: s => s.structureType !== STRUCTURE_RAMPART && s.structureType !== STRUCTURE_WALL && s.structureType !== STRUCTURE_CONTAINER
     });
     targets.sort((a, b) => a.hits / a.hitsMax - b.hits / b.hitsMax);
     if (targets.length > 0) {
