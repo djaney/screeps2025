@@ -287,7 +287,7 @@ export default class WorkerCreepService extends BaseCreepService {
       if (haulerBodyCount === 0) {
         parts = [MOVE, CARRY];
       } else {
-        parts = this.generateCreepParts(room, [MOVE, CARRY], [MOVE, CARRY]);
+        parts = this.generateCreepParts(room, [MOVE, CARRY], [MOVE, CARRY], 5);
       }
       this.bot.enqueueSpawn(roomId, this.generateWorkerCreepName(WorkerType.HAULER, roomId), parts, n => {
         try {
@@ -317,7 +317,7 @@ export default class WorkerCreepService extends BaseCreepService {
       if (minerCreeps.length === 0) {
         parts = [MOVE, WORK, CARRY];
       } else {
-        parts = this.generateCreepParts(room, [MOVE, CARRY], [MOVE, WORK, CARRY]);
+        parts = this.generateCreepParts(room, [MOVE, CARRY], [MOVE, WORK, CARRY], 5);
       }
 
       this.bot.enqueueSpawn(roomId, this.generateWorkerCreepName(WorkerType.MINER, roomId), parts, n => {
@@ -624,11 +624,12 @@ export default class WorkerCreepService extends BaseCreepService {
   private generateCreepParts(
     room: Room,
     initialParts: BodyPartConstant[],
-    incrementalParts: BodyPartConstant[]
+    incrementalParts: BodyPartConstant[],
+    max = +Infinity
   ): BodyPartConstant[] {
     const initialCost: number = initialParts.reduce((a, p) => a + BODYPART_COST[p], 0);
     const incrementalCost: number = incrementalParts.reduce((a, p) => a + BODYPART_COST[p], 0);
-    const increments = Math.floor((room.energyCapacityAvailable - initialCost) / incrementalCost);
+    const increments = Math.min(max, Math.floor((room.energyCapacityAvailable - initialCost) / incrementalCost));
     if (increments === 0) throw new Error("cannot afford parts");
     return _.flatten([...initialParts, ...Array(increments).fill(incrementalParts)]);
   }
