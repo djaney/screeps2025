@@ -79,6 +79,7 @@ export class LogisticIndex {
         return acc + obj.store.getUsedCapacity(a.resource)
       }, 0);
     }
+
     // separate storages
     const storages = _.remove(out, s => {
       const o = Game.getObjectById(s.id);
@@ -102,8 +103,9 @@ export class LogisticIndex {
   getAvailableSink(roomId: string, resource: LResourceConstant, amount: number): LSinkInterface<LSinkConstant>[]{
     const roomSinks = this.sinks[roomId];
     if(!roomSinks) return []
-    let fulfilled = 0;
+
     let out: LSinkInterface<LSinkConstant>[] = []
+    let targets: LSinkInterface<LSinkConstant>[] = []
     for (let i in roomSinks){
       // cleanup
       if(!Game.getObjectById(roomSinks[i].id)){
@@ -115,22 +117,50 @@ export class LogisticIndex {
         delete roomSinks[i]
       }
       // @ts-ignore
-      const sinkRemaining = roomSinks[i] ? roomSinks[i].getRemainingValue() : 0;
-      if(roomSinks[i] && sinkRemaining > 0 && fulfilled < amount && roomSinks[i].resource === resource){
-        fulfilled += roomSinks[i].getRemainingValue();
-        out.push(roomSinks[i])
+      if(roomSinks[i] && roomSinks[i].getRemainingValue() > 0 && roomSinks[i].resource === resource){
+        targets.push(roomSinks[i])
       }
     }
     // separate storages
-    const storages = _.remove(out, s => {
+    const storages = _.remove(targets, s => {
       const o = Game.getObjectById(s.id);
       if(!o) return false;
       return (o as StructureStorage).structureType == STRUCTURE_STORAGE
     });
-    out.sort((a, b) => {
+    targets.sort((a, b) => {
       return a.lastTick - b.lastTick;
     });
-    out = out.concat(storages)
+
+    let fulfilled = 0;
+    let currentSink: LSinkInterface<LSinkConstant>|undefined= undefined;
+    while(fulfilled < amount){
+      // add initial
+      if(!currentSink && targets.length > 0){
+        currentSink = targets.shift();
+      }
+      // add closes from last
+      if(!currentSink && targets.length > 0){
+        currentSink = _.min(targets , t => {
+          const s = Game.getObjectById(t.id);
+          if(!s) return +Infinity;
+          // @ts-ignore
+          const s2 = Game.getObjectById(currentSink.id);
+          if(!s2) return +Infinity;
+          return s.pos.getRangeTo(s2)
+        })
+        _.remove(targets, s => currentSink && s.id === currentSink.id)
+      }
+
+      if(!currentSink && storages.length > 0){
+        currentSink = storages.shift();
+        _.remove(storages, s => currentSink && s.id === currentSink.id)
+      }
+
+      if(!currentSink) break;
+      out.push(currentSink);
+      fulfilled += currentSink.getRemainingValue();
+    }
+
     return out;
   }
 
