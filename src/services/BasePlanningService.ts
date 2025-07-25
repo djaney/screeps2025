@@ -40,6 +40,7 @@ declare global {
       potentialRoad?: number[];
       buildings?: Building[];
       ramparts?: XY[];
+      haulerMult?: number
     };
   }
 }
@@ -95,6 +96,8 @@ export class BasePlanningService implements ServiceInterface {
             this.generateBuildings(room);
           } else if ((Game.rooms.sim || Game.cpu.tickLimit >= 50) && !room.memory.bp.ramparts) {
             this.generateRamparts(room);
+          } else if ((Game.rooms.sim || Game.cpu.tickLimit >= 50) && !room.memory.bp.haulerMult) {
+            this.generateHaulerMult(room);
           } else {
             // DONE
             room.memory.bp = {
@@ -102,7 +105,8 @@ export class BasePlanningService implements ServiceInterface {
               buildings: room.memory.bp.buildings,
               core: room.memory.bp.core,
               upgrade: room.memory.bp.upgrade,
-              labs: room.memory.bp.labs
+              labs: room.memory.bp.labs,
+              haulerMult: room.memory.bp.haulerMult
             };
             return;
           }
@@ -553,6 +557,22 @@ export class BasePlanningService implements ServiceInterface {
       return { p: xy, b: STRUCTURE_RAMPART };
     });
     room.memory.bp.buildings = room.memory.bp.buildings.concat(newBuildings);
+  }
+
+  generateHaulerMult(room: Room){
+    if (!room.memory.bp) return;
+    if (!room.memory.bp.core) return;
+    const corePos = room.getPositionAt(room.memory.bp.core.x, room.memory.bp.core.y);
+    if(!corePos) new Error(`Invalid code position ${JSON.stringify(room.memory.bp.core)}`);
+
+    room.memory.bp.haulerMult = Math.ceil(room.find(FIND_SOURCES).reduce((a, s) => {
+      if (!corePos) return a;
+      const res = PathFinder.search(corePos, { pos: s.pos, range: 1 });
+      if (res.incomplete) {
+        return a;
+      }
+      return a + res.cost / 10
+    }, 0) / room.find(FIND_SOURCES).length);
   }
 
   private renderStamp(room: Room, stamp: StampBox) {

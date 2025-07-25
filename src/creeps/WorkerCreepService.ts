@@ -265,6 +265,8 @@ export default class WorkerCreepService extends BaseCreepService {
     const haulerBodyCount = this.getCreepTypeBodyPartCount(haulerCreeps, CARRY);
     const minerBodyCount = this.getCreepTypeBodyPartCount(minerCreeps, WORK);
 
+    const haulerMult = room.memory.bp?.haulerMult || 5;
+
     // console.log("-=SPAWN DEBUG=-")
     // console.log("controllerCreeps", controllerCreeps)
     // console.log("minerCreeps", minerCreeps)
@@ -282,7 +284,7 @@ export default class WorkerCreepService extends BaseCreepService {
     if (currentSpawnQueueCount > 0) return;
 
     // hauler
-    if (haulerBodyCount < minerBodyCount * 3) {
+    if (haulerBodyCount < minerBodyCount * haulerMult) {
       let parts: BodyPartConstant[];
       if (haulerBodyCount === 0) {
         parts = [MOVE, CARRY];
