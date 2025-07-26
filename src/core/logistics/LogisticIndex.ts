@@ -127,13 +127,19 @@ export class LogisticIndex {
       if(!o) return false;
       return (o as StructureStorage).structureType == STRUCTURE_STORAGE
     });
+    const towers = _.remove(targets, s => {
+      const o = Game.getObjectById(s.id);
+      if(!o) return false;
+      return (o as StructureTower).structureType == STRUCTURE_TOWER
+    });
     targets.sort((a, b) => {
       return a.lastTick - b.lastTick;
     });
+    targets = [...towers, ...targets, ...storages]
 
     let fulfilled = 0;
     let currentSink: LSinkInterface<LSinkConstant>|undefined= undefined;
-    while(fulfilled < amount){
+    while(fulfilled < amount && targets.length > 0){
       // add initial
       if(!currentSink && targets.length > 0){
         currentSink = targets.shift();
@@ -149,11 +155,6 @@ export class LogisticIndex {
           return s.pos.getRangeTo(s2)
         })
         _.remove(targets, s => currentSink && s.id === currentSink.id)
-      }
-
-      if(!currentSink && storages.length > 0){
-        currentSink = storages.shift();
-        _.remove(storages, s => currentSink && s.id === currentSink.id)
       }
 
       if(!currentSink) break;
