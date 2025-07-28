@@ -484,7 +484,7 @@ export default class WorkerCreepService extends BaseCreepService {
 
   runController(creep: Creep) {
     const [prefix, type, roomId, idx] = this.splitCreepName(creep.name);
-    this.logisticsIndex.addSink(new TransferSink(creep.id, RESOURCE_ENERGY));
+    this.logisticsIndex.addSink(new TransferSink(creep.id, RESOURCE_ENERGY, true));
     const room = Game.rooms[roomId];
     if (!room) return;
     if (!room.controller) return;
@@ -520,7 +520,7 @@ export default class WorkerCreepService extends BaseCreepService {
 
   runBuilder(creep: Creep) {
     const [prefix, type, roomId, idx] = this.splitCreepName(creep.name);
-    this.logisticsIndex.addSink(new TransferSink(creep.id, RESOURCE_ENERGY));
+    this.logisticsIndex.addSink(new TransferSink(creep.id, RESOURCE_ENERGY, true));
     const room = Game.rooms[roomId];
     if (!room) return;
     const sites = room.find(FIND_MY_CONSTRUCTION_SITES);
@@ -551,7 +551,7 @@ export default class WorkerCreepService extends BaseCreepService {
                 // @ts-ignore
                 if (struct.store?.getCapacity(RESOURCE_ENERGY)) {
                   // @ts-ignore
-                  this.logisticsIndex.addSink(new TransferSink<RESOURCE_ENERGY>(struct.id));
+                  this.logisticsIndex.addSink(new TransferSink<RESOURCE_ENERGY>(struct.id, RESOURCE_ENERGY));
                 }
               });
             }

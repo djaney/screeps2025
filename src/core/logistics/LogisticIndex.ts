@@ -139,13 +139,15 @@ export class LogisticIndex {
 
     let fulfilled = 0;
     let currentSink: LSinkInterface<LSinkConstant>|undefined= undefined;
+    let first = true;
     while(fulfilled < amount && targets.length > 0){
       // add initial
-      if(!currentSink && targets.length > 0){
+      if(first){
         currentSink = targets.shift();
+        first = false
       }
       // add closes from last
-      if(!currentSink && targets.length > 0){
+      else if(targets.length > 0){
         currentSink = _.min(targets , t => {
           const s = Game.getObjectById(t.id);
           if(!s) return +Infinity;
@@ -155,13 +157,14 @@ export class LogisticIndex {
           return s.pos.getRangeTo(s2)
         })
         _.remove(targets, s => currentSink && s.id === currentSink.id)
+      }else{
+        break;
       }
 
       if(!currentSink) break;
       out.push(currentSink);
       fulfilled += currentSink.getRemainingValue();
     }
-
     return out;
   }
 
