@@ -61,6 +61,18 @@ export class BasePlanningService implements ServiceInterface {
   }
 
   debug(coords: PrintBoxCoordinates): PrintBoxCoordinates {
+    console.log(JSON.stringify(Game.spawns))
+    const room = Object.values(Game.spawns)[0].room;
+    if(!room) return coords;
+    if(!room.memory) return coords;
+    if(!room.memory.bp) return coords;
+
+    if (room.memory.bp.upgrade) this.renderStamp(room, room.memory.bp.upgrade);
+    if (room.memory.bp.core) this.renderStamp(room, room.memory.bp.core);
+    if (room.memory.bp.labs) this.renderLabs(room, room.memory.bp.labs);
+    if (room.memory.bp.constructionSites)
+      this.renderConstructionSites(room, room.memory.bp.constructionSites);
+    if (room.memory.bp.buildings) this.renderBuildings(room, room.memory.bp.buildings);
     return coords
   }
 
@@ -119,13 +131,6 @@ export class BasePlanningService implements ServiceInterface {
 
           return;
         }
-
-        if (true && room.memory.bp.upgrade) this.renderStamp(room, room.memory.bp.upgrade);
-        if (true && room.memory.bp.core) this.renderStamp(room, room.memory.bp.core);
-        if (true && room.memory.bp.labs) this.renderLabs(room, room.memory.bp.labs);
-        if (true && room.memory.bp.constructionSites)
-          this.renderConstructionSites(room, room.memory.bp.constructionSites);
-        if (true && room.memory.bp.buildings) this.renderBuildings(room, room.memory.bp.buildings);
 
         return { scheduleIn: { id: `bp.${roomId}`, t: 1 } };
       }
@@ -670,7 +675,13 @@ export class BasePlanningService implements ServiceInterface {
       [STRUCTURE_NUKER]: "💥",
       [STRUCTURE_TOWER]: "🔫"
     };
-    buildings.forEach(building => {
+    let lastEnergyStructurePos: RoomPosition|null = null;
+    buildings.forEach((building, index) => {
+      const currentPos = room.getPositionAt(building.p[0], building.p[1])
+      if(lastEnergyStructurePos && currentPos && (building.b === "extension" || building.b === "spawn")){
+        room.visual.line(lastEnergyStructurePos, currentPos);
+      }
+      lastEnergyStructurePos = currentPos;
       if (building.b === STRUCTURE_RAMPART) {
         room.visual.rect(building.p[0] - 0.5, building.p[1] - 0.5, 1, 1, {
           opacity: 0.4,

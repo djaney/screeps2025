@@ -82,13 +82,17 @@ export default class Bot {
   loop(){
     this.process.loop();
     // debug
+    let debugCoords: PrintBoxCoordinates = {x: 0, y: 0, w: 10};
     if(Memory.debugService && Memory.debugService.length > 0){
-      let debugCoords: PrintBoxCoordinates = {x: 0, y: 0, w: 10};
       _(this.creepServices).forEach((svc) => {
         if(!Memory.debugService?.includes(svc.prefix)) return;
         debugCoords = svc.debug(debugCoords);
       }).run()
     }
+
+    _(this.services).forEach((svc) => {
+      debugCoords = svc.debug(debugCoords);
+    }).run()
 
   }
 
